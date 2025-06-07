@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}התייעץ עם הבינה - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<h2 class="mb-4">התייעץ עם הבינה המלאכותית</h2>
+
+<!-- AI Advice Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">התייעץ עם הבינה</h5>
+                <form method="POST" class="mb-3">
+                    {{ form.hidden_tag() }}
+                    <div class="row">
+                        <div class="col-md-8">
+                            {{ form.symbol.label(class="form-label") }}
+                            {{ form.symbol(class="form-control", placeholder="לדוגמה: AAPL, TSLA, MSFT") }}
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            {{ form.submit(class="btn btn-primary w-100") }}
+                        </div>
+                    </div>
+                </form>
+                
+                {% if advice %}
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-robot"></i> ייעוץ AI:</h6>
+                    <p class="mb-0">{{ advice }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">המלצות כלליות</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="bi bi-check-circle text-success"></i>
+                        פיזור השקעות - מומלץ לפזר את ההשקעות בין מספר נכסים
+                    </li>
+                    <li class="list-group-item">
+                        <i class="bi bi-check-circle text-success"></i>
+                        איזון תיק - שמירה על יחס מאוזן בין מניות לאג"ח
+                    </li>
+                    <li class="list-group-item">
+                        <i class="bi bi-check-circle text-success"></i>
+                        השקעה ארוכת טווח - מומלץ להשקיע לטווח ארוך
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

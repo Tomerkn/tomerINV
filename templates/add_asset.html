@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}הוספת נכס - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-4">הוספת נכס חדש</h2>
+                <form method="POST" class="text-end">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.symbol.label(class="form-label") }}
+                        {{ form.symbol(class="form-control", id="symbol") }}
+                        <div class="form-text">הזן סמל מנייה (למשל: AAPL, GOOGL, או TA35.TA)</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", id="name") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.quantity.label(class="form-label") }}
+                        {{ form.quantity(class="form-control", type="number", step="0.01") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.purchase_price.label(class="form-label") }}
+                        {{ form.purchase_price(class="form-control", type="number", step="0.01") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.current_price.label(class="form-label") }}
+                        {{ form.current_price(class="form-control", type="number", step="0.01", id="current_price") }}
+                    </div>
+                    {{ form.submit(class="btn btn-primary") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ללא JavaScript - טופס פשוט בלבד -->
+{% endblock %} 

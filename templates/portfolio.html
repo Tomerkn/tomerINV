@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}תיק השקעות - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>תיק השקעות</h2>
+    <div>
+        {% if current_user.is_admin() %}
+        <a href="{{ url_for('update_all_prices') }}" class="btn btn-success me-2">
+            <i class="bi bi-arrow-repeat"></i> עדכן מחירים
+        </a>
+        <a href="{{ url_for('add_security') }}" class="btn btn-primary me-2">
+            <i class="bi bi-plus-circle"></i> הוסף נייר ערך
+        </a>
+
+        {% else %}
+        <span class="badge bg-info">צפייה בלבד - הרשאות מפעיל</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if portfolio %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>שם נייר הערך</th>
+                        <th>מחיר</th>
+                        <th>כמות</th>
+                        <th>שווי כולל</th>
+                        <th>רמת סיכון</th>
+                        <th>פעולות</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in portfolio %}
+                    <tr data-symbol="{{ item.name }}">
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td class="current-price">₪{{ "{:,.2f}".format(item.price) }}</td>
+                        <td>{{ "{:,.2f}".format(item.amount) }}</td>
+                        <td>₪{{ "{:,.2f}".format(item.price * item.amount) }}</td>
+                        <td>
+                            {% if item.risk_level %}
+                                {% if item.risk_level <= 2 %}
+                                    <span class="badge bg-success">{{ "{:.1f}".format(item.risk_level) }} - נמוך</span>
+                                {% elif item.risk_level <= 6 %}
+                                    <span class="badge bg-warning">{{ "{:.1f}".format(item.risk_level) }} - בינוני</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ "{:.1f}".format(item.risk_level) }} - גבוה</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">לא מוגדר</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_user.is_admin() %}
+                            <a href="{{ url_for('update_single_price', symbol=item.name) }}" class="btn btn-sm btn-info me-1">
+                                <i class="bi bi-arrow-repeat"></i> עדכן מחיר
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="deleteAsset('{{ item.name }}')">
+                                <i class="bi bi-trash"></i> מחק
+                            </button>
+                            {% else %}
+                            <span class="text-muted">אין הרשאה</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <h4>התיק שלך ריק</h4>
+    <p>התחל בהוספת ניירות ערך לתיק ההשקעות שלך</p>
+    {% if current_user.is_admin() %}
+    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך ראשון</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function deleteAsset(assetName) {
+    if (confirm(`האם אתה בטוח שברצונך למחוק את ${assetName} מהתיק? פעולה זו אינה ניתנת לביטול.`)) {
+        // יצירת טופס נסתר לשליחת POST request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/portfolio/delete/${encodeURIComponent(assetName)}`;
+        
+        // הוספת CSRF token אם קיים
+        const csrfToken = document.querySelector('meta[name=csrf-token]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.getAttribute('content');
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

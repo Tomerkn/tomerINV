@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}גרפים - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<h2 class="mb-4">גרפים</h2>
+
+{% if portfolio %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>תרשים עוגה - התפלגות התיק</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('generate_pie_chart') }}" alt="תרשים עוגה של התיק" class="img-fluid" style="max-width: 100%; height: auto;">
+                <div class="mt-3 p-2 bg-light rounded">
+                    <strong>שווי כולל: ₪{{ "{:,.2f}".format(total_value) }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>פירוט התפלגות תיק השקעות</h5>
+            </div>
+            <div class="card-body">
+                {% for item in portfolio %}
+                {% set color_class = "color-" + (loop.index % 8 + 1)|string %}
+                <div class="mb-2">
+                    <span class="pie-slice {{ color_class }}"></span>
+                    <strong>{{ item.name }}</strong>: {{ "{:.1f}".format(item.percentage) }}%
+                    <div class="text-muted small">₪{{ "{:,.2f}".format(item.value) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>פירוט תיק השקעות</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>שם נייר הערך</th>
+                                <th>מחיר</th>
+                                <th>כמות</th>
+                                <th>שווי כולל</th>
+                                <th>אחוז מהתיק</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in portfolio %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>₪{{ "{:,.2f}".format(item.price) }}</td>
+                                <td>{{ "{:,.2f}".format(item.amount) }}</td>
+                                <td>₪{{ "{:,.2f}".format(item.value) }}</td>
+                                <td>{{ "{:.1f}".format(item.percentage) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>תרשים עוגה - התפלגות התיק</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('generate_pie_chart') }}" alt="תרשים עוגה של התיק" class="img-fluid" style="max-width: 100%; height: auto;">
+                <div class="alert alert-info mt-3">
+                    <h4>אין נתונים להצגה</h4>
+                    <p>הוסף ניירות ערך לתיק ההשקעות שלך כדי לראות גרפים</p>
+                    {% if current_user.is_admin() %}
+                    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- תרשימים ויזואליים בעזרת CSS בלבד -->
+<style>
+.chart-bar {
+    background: linear-gradient(45deg, #1565c0, #42a5f5);
+    color: white;
+    text-align: center;
+    padding: 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.pie-slice {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+.color-1 { background-color: #FF6384; }
+.color-2 { background-color: #36A2EB; }
+.color-3 { background-color: #FFCE56; }
+.color-4 { background-color: #4BC0C0; }
+.color-5 { background-color: #9966FF; }
+.color-6 { background-color: #FF9F40; }
+.color-7 { background-color: #FF6384; }
+.color-8 { background-color: #C9CBCF; }
+</style>
+{% endblock %}

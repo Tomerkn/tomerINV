@@ -1,0 +1,154 @@
+<!-- אומר לדפדפן שזה HTML5 -->
+<!DOCTYPE html>
+<!-- זה התג הראשי של הדף, אומר לו שזה עברית ומימין לשמאל -->
+<html lang="he" dir="rtl">
+<head>
+    <!-- אומר לדפדפן איך לקרוא עברית -->
+    <meta charset="UTF-8">
+    <!-- אומר לדפדפן איך להציג את הדף במובייל -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- הכותרת שרואים בלשונית של הדפדפן -->
+    <title>{% block title %}מערכת ניהול השקעות{% endblock %}</title>
+    <!-- מביא CSS יפה מהאינטרנט לעיצוב -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- מביא אייקונים יפים מהאינטרנט -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* עיצוב כל הדף */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;  /* פונט יפה */
+            background-color: #f8f9fa;  /* רקע בהיר */
+        }
+        /* עיצוב התפריט בצד */
+        .sidebar {
+            background-color: #1e3a8a;  /* כחול כמו דגל ישראל */
+            color: white;  /* כתב לבן */
+            min-height: 100vh;  /* גובה של כל המסך */
+            padding: 20px;  /* רווח מבפנים */
+        }
+        /* עיצוב הקישורים בתפריט */
+        .sidebar .nav-link {
+            color: white;  /* כתב לבן */
+            margin: 5px 0;  /* רווח בין הקישורים */
+            border-radius: 5px;  /* פינות מעוגלות */
+            padding: 10px 15px;  /* רווח מבפנים */
+        }
+        /* איך זה נראה כשעוברים עם העכבר על קישור */
+        .sidebar .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);  /* רקע בהיר קצת */
+        }
+        /* איך נראה הדף שאנחנו נמצאים עליו עכשיו */
+        .sidebar .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);  /* רקע בהיר יותר */
+        }
+        /* עיצוב התוכן הראשי */
+        .main-content {
+            padding: 20px;  /* רווח סביב */
+        }
+        /* עיצוב הקופסאות */
+        .card {
+            border-radius: 10px;  /* פינות מעוגלות */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);  /* צל קל */
+        }
+        /* עיצוב הכפתורים */
+        .btn-primary {
+            background-color: #1e3a8a;  /* כחול כמו התפריט */
+            border-color: #1e3a8a;  /* גבול באותו צבע */
+        }
+        /* איך הכפתור נראה כשעוברים עליו עם העכבר */
+        .btn-primary:hover {
+            background-color: #1e3a8a;  /* אותו צבע */
+            border-color: #1e3a8a;  /* אותו גבול */
+            opacity: 0.9;  /* קצת שקוף */
+        }
+    </style>
+</head>
+<body>
+    <!-- הקופסה הגדולה שמכילה את כל הדף -->
+    <div class="container-fluid">
+        <!-- השורה שמחלקת את הדף לחלקים -->
+        <div class="row">
+            <!-- התפריט בצד שמאל -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <!-- הכותרת של המערכת -->
+                <h3 class="mb-4">מערכת ניהול השקעות</h3>
+                <!-- אם מישהו התחבר, תראה לו מי הוא -->
+                {% if current_user.is_authenticated %}
+                <div class="mb-3">
+                    <div class="text-center">
+                        <!-- תווית שמראה איזה סוג משתמש זה -->
+                        <span class="badge bg-{{ 'warning' if current_user.is_admin() else 'info' }} fs-6">
+                            <!-- אם זה מנהל, תראה כתר -->
+                            {% if current_user.is_admin() %}
+                            מנהל מערכת
+                            {% else %}
+                            <!-- אם זה מפעיל רגיל, תראה איקון אדם -->
+                            👤 מפעיל
+                            {% endif %}
+                        </span>
+                        <!-- תראה את שם המשתמש -->
+                        <div class="mt-1">
+                            <small>{{ current_user.username }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <!-- התפריט עם כל הקישורים -->
+                <nav class="nav flex-column">
+                    <!-- קישור לדף הבית -->
+                    <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+                        <i class="bi bi-house-door"></i> דף הבית
+                    </a>
+                    <!-- קישור לתיק ההשקעות -->
+                    <a class="nav-link {% if request.endpoint == 'portfolio' %}active{% endif %}" href="{{ url_for('portfolio') }}">
+                        <i class="bi bi-briefcase"></i> תיק השקעות
+                    </a>
+                    <!-- קישור לגרפים יפים -->
+                    <a class="nav-link {% if request.endpoint == 'graph' %}active{% endif %}" href="{{ url_for('graph') }}">
+                        <i class="bi bi-graph-up"></i> גרפים
+                    </a>
+                    <!-- קישור לבדיקת סיכונים -->
+                    <a class="nav-link {% if request.endpoint == 'risk' %}active{% endif %}" href="{{ url_for('risk') }}">
+                        <i class="bi bi-shield"></i> ניהול סיכונים
+                    </a>
+                    <!-- קישור לקבלת ייעוץ מהמחשב החכם -->
+                    <a class="nav-link {% if request.endpoint == 'advice' %}active{% endif %}" href="{{ url_for('advice') }}">
+                        <i class="bi bi-robot"></i> התייעץ עם הבינה
+                    </a>
+
+                    <!-- קישור לצאת מהמערכת -->
+                    <a class="nav-link" href="{{ url_for('logout') }}">
+                        <i class="bi bi-box-arrow-right"></i> התנתק
+                    </a>
+                </nav>
+            </div>
+
+            <!-- החלק הראשי של הדף -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <!-- מטפל בהודעות מהמערכת -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <!-- עובר על כל ההודעות -->
+                        {% for category, message in messages %}
+                            <!-- קופסה להודעה -->
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}  <!-- מה שכתוב בהודעה -->
+                                <!-- כפתור לסגירת ההודעה -->
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- פה יכנס התוכן של כל דף -->
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- תראה שאין javascript באתר שלנו -->
+    <!-- האתר עובד רק עם CSS יפה, בלי javascript -->
+<!-- פה אפשר להוסיף javascript אם נרצה בעתיד -->
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}ניהול סיכונים - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<h2 class="mb-4">ניהול סיכונים</h2>
+
+{% if portfolio %}
+<div class="alert alert-info text-end" role="alert">
+    <strong>איך אנחנו מחשבים סיכון:</strong> המערכת בודקת כמה מסוכן כל ענף ומה הסיכוי לשינויים
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>ניתוח סיכונים לפי נייר ערך</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>שם נייר הערך</th>
+                                <th>מחיר</th>
+                                <th>כמות</th>
+                                <th>שווי</th>
+                                <th>אחוז מהתיק</th>
+                                <th>ענף</th>
+                                <th>רמת סיכון</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in portfolio %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>₪{{ "{:,.2f}".format(item.price) }}</td>
+                                <td>{{ "{:,.2f}".format(item.amount) }}</td>
+                                <td>₪{{ "{:,.2f}".format(item.value) }}</td>
+                                <td>{{ "{:.1f}".format(item.percentage) }}%</td>
+                                <td>{{ item.industry }}</td>
+                                <td>
+                                    {% if item.risk_level %}
+                                        {% if item.risk_level <= 2 %}
+                                            <span class="badge bg-success">{{ "{:.1f}".format(item.risk_level) }}</span>
+                                        {% elif item.risk_level <= 6 %}
+                                            <span class="badge bg-warning">{{ "{:.1f}".format(item.risk_level) }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ "{:.1f}".format(item.risk_level) }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">לא מוגדר</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>סולם סיכונים לפי ענפים</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>ענף</th>
+                            <th>רמת סיכון (1-6)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>טכנולוגיה</td><td><span class="badge bg-danger">6</span></td></tr>
+                        <tr><td>תחבורה</td><td><span class="badge bg-warning">5</span></td></tr>
+                        <tr><td>אנרגיה</td><td><span class="badge bg-warning">4</span></td></tr>
+                        <tr><td>בריאות</td><td><span class="badge bg-warning">4</span></td></tr>
+                        <tr><td>תעשייה</td><td><span class="badge bg-info">3</span></td></tr>
+                        <tr><td>פיננסים</td><td><span class="badge bg-info">3</span></td></tr>
+                        <tr><td>נדלן</td><td><span class="badge bg-success">2</span></td></tr>
+                        <tr><td>צריכה פרטית</td><td><span class="badge bg-success">1</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>המלצות ניהול סיכונים</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>תפזר את הכסף:</strong> אל תשים הכל בענף אחד, תפזר בין כמה תחומים
+                    </li>
+                    <li class="list-group-item">
+                        <strong>ערבב סוגי השקעות:</strong> קח מניות בחברות, אגח של הממשלה ואגח של חברות
+                    </li>
+                    <li class="list-group-item">
+                        <strong>שמור על איזון בסיכון:</strong> תערבב השקעות בטוחות עם כאלה שיותר מסוכנות
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% else %}
+<div class="alert alert-info text-center">
+    <h4>אין נתונים לניתוח סיכונים</h4>
+    <p>הוסף ניירות ערך לתיק ההשקעות שלך כדי לראות ניתוח סיכונים</p>
+    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך</a>
+</div>
+{% endif %}
+{% endblock %}
