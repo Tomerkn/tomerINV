@@ -1,18 +1,17 @@
-# מביאים כל הדברים שנצרכים לאתר
 from flask import Flask, render_template, redirect, url_for, flash, Response
-from flask_wtf import FlaskForm  # כלים לטפסים
-from wtforms import (StringField, FloatField, SelectField,
-                    SubmitField, PasswordField)
-from wtforms.validators import DataRequired
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                         login_required, current_user)
+from flask_wtf import FlaskForm
+from wtforms import (StringField, PasswordField, SubmitField, FloatField,
+                    SelectField)
+from wtforms.validators import DataRequired
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import matplotlib
-matplotlib.use('Agg')  # מגדיר matplotlib לפעול בלי GUI
+matplotlib.use('Agg')  # משתמש ב-backend שלא דורש GUI
 import matplotlib.pyplot as plt
 import io
-import base64
+import os
 
 # מביאים הקלסים שיצרנו בקבצים אחרים
 from dbmodel import PortfolioModel
@@ -287,18 +286,16 @@ def generate_pie_chart():
         ax.axis('off')
     else:
         # חישוב נתונים לגרף
-        names = [item['name'] for item in portfolio_data]
+        names = [item['name'] for item in portfolio_data]  # הסרתי את הפיכת השמות
         values = [item['price'] * item['amount'] for item in portfolio_data]
         
         # יצירת תרשים עוגה
         fig, ax = plt.subplots(figsize=(10, 8))
-        colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-                 '#FF9F40', '#FF6384', '#C9CBCF']
+        colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                  '#FF9F40', '#FF6384', '#C9CBCF']
         
         wedges, texts, autotexts = ax.pie(values, labels=names, autopct='%1.1f%%',
-                                         startangle=90, colors=colors)
-        
-        
+                                          startangle=90, colors=colors)
         
         # הגדרת גודל טקסט
         for text in texts:
@@ -323,4 +320,5 @@ ai_agent = AI_Agent()  # יוצר את הבינה המלאכותית שתייע�
 
 # מפעילים את האתר
 if __name__ == '__main__':  # בודק שהקובץ הזה רץ ישירות ולא נייבא מקובץ אחר
-    app.run(debug=True, host='127.0.0.1', port=4000)  # מפעיל את האתר עם דיבוג על פורט 4000
+    port = int(os.environ.get('PORT', 4000))  # מקבל פורט מ-Render או משתמש ב-4000
+    app.run(debug=True, host='0.0.0.0', port=port)  # מפעיל את האתר עם דיבוג על הפורט הנכון
