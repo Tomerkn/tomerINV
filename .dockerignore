@@ -23,4 +23,5 @@ coverage.xml
 .DS_Store
 instance/
 *.db
-.gitignore 
+.gitignore
+render.yaml 

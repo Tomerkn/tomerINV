@@ -321,4 +321,4 @@ ai_agent = AI_Agent()  # יוצר את הבינה המלאכותית שתייע�
 # מפעילים את האתר
 if __name__ == '__main__':  # בודק שהקובץ הזה רץ ישירות ולא נייבא מקובץ אחר
     port = int(os.environ.get('PORT', 4000))  # מקבל פורט מ-Render או משתמש ב-4000
-    app.run(debug=True, host='0.0.0.0', port=port)  # מפעיל את האתר עם דיבוג על הפורט הנכון
+    app.run(debug=False, host='0.0.0.0', port=port)  # מפעיל את האתר עם דיבוג על הפורט הנכון
