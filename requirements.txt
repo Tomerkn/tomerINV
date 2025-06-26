@@ -16,3 +16,4 @@ itsdangerous==2.1.2
 sniffio==1.3.0
 gunicorn==21.2.0
 setuptools>=68.0.0
+psycopg2-binary==2.9.9

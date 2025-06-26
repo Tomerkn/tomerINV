@@ -1,15 +1,108 @@
 import sqlite3  # מביא כלים לעבודה עם בסיס נתונים פשוט
 import threading  # מביא כלים לעבודה עם כמה דברים במקביל
+import os
+from datetime import datetime
 
 class PortfolioModel:  # הקלאס שמנהל את בסיס הנתונים של התיק
-    def __init__(self):  # פונקציה שרצה כשיוצרים דבר חדש מהקלאס הזה
-        self.db_name = "investments.db"  # שם הקובץ שבו נשמרות כל ההשקעות
-        self.create_tables()  # קוראת לפונקציה שיוצרת את הטבלאות
+    """מחלקה שמנהלת את מסד הנתונים של תיק ההשקעות"""
     
+    def __init__(self):
+        """יוצר את מסד הנתונים"""
+        # שימוש במסד נתונים בענן או מקומי
+        db_path = os.environ.get('DATABASE_URL', 'investments.db')
+        if db_path.startswith('postgres://'):
+            # אם זה PostgreSQL, נשתמש ב-SQLite כרגע
+            db_path = 'investments.db'
+        
+        self.db_path = db_path
+        self.init_db()
+    
+    def init_db(self):
+        """יוצר את הטבלאות במסד הנתונים"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # טבלת ניירות ערך
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS securities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                amount REAL NOT NULL,
+                price REAL NOT NULL,
+                industry TEXT,
+                variance TEXT,
+                security_type TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def add_security(self, name, amount, price, industry, variance, security_type):
+        """מוסיף נייר ערך חדש למסד הנתונים"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO securities (name, amount, price, industry, variance, security_type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, amount, price, industry, variance, security_type))
+        
+        conn.commit()
+        conn.close()
+        return f"נייר הערך {name} נוסף בהצלחה"
+    
+    def get_all_securities(self):
+        """מחזיר את כל ניירות הערך"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM securities')
+        securities = cursor.fetchall()
+        
+        conn.close()
+        
+        # ממיר לרשימת מילונים
+        result = []
+        for sec in securities:
+            result.append({
+                'id': sec[0],
+                'name': sec[1],
+                'amount': sec[2],
+                'price': sec[3],
+                'industry': sec[4],
+                'variance': sec[5],
+                'security_type': sec[6],
+                'created_at': sec[7]
+            })
+        
+        return result
+    
+    def update_price(self, name, new_price):
+        """מעדכן מחיר של נייר ערך"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('UPDATE securities SET price = ? WHERE name = ?', (new_price, name))
+        
+        conn.commit()
+        conn.close()
+    
+    def remove_security(self, name):
+        """מוחק נייר ערך מהמסד"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('DELETE FROM securities WHERE name = ?', (name,))
+        
+        conn.commit()
+        conn.close()
+
     def get_connection(self):  # פונקציה שיוצרת חיבור חדש לבסיס הנתונים
         """יוצר חיבור חדש לבסיס הנתונים"""
         # יוצר חיבור חדש לבסיס הנתונים
-        conn = sqlite3.connect(self.db_name, check_same_thread=False)
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
         return conn  # מחזיר את החיבור
     
     def create_tables(self):  # פונקציה שיוצרת את הטבלה במסד הנתונים אם היא לא קיימת
@@ -30,37 +123,6 @@ class PortfolioModel:  # הקלאס שמנהל את בסיס הנתונים של
         conn.commit()  # שומר את השינויים במסד הנתונים בקובץ
         conn.close()  # סוגר את החיבור למסד הנתונים
 
-    def add_security(self, name, price, industry, variance, security_type):  # פונקציה להוספת נייר ערך חדש
-        # מקבלת פרטי נייר ערך ומוסיפה אותו למסד הנתונים
-        conn = self.get_connection()  # מקבל חיבור למסד הנתונים
-        cursor = conn.cursor()  # יוצר סמן לביצוע פעולות
-        try:  # מנסה לבצע את הפעולה
-            # מכניס נייר ערך חדש לטבלה עם כל הפרטים
-            cursor.execute("INSERT INTO investments (name, price, industry, variance, security_type) VALUES (?, ?, ?, ?, ?)",
-                                (name, price, industry, variance, security_type))
-            conn.commit()  # שומר את השינויים במסד הנתונים
-        except sqlite3.IntegrityError:  # אם יש שגיאה (כנראה כי הנייר ערך כבר קיים)
-            print("נייר הערך כבר קיים בתיק ההשקעות.")  # מדפיס הודעת שגיאה
-        finally:  # בכל מקרה בסוף
-            conn.close()  # סוגר את החיבור למסד הנתונים
-
-    def remove_security(self, name):  # פונקציה למחיקת נייר ערך מהתיק
-        conn = self.get_connection()  # מקבל חיבור למסד הנתונים
-        cursor = conn.cursor()  # יוצר סמן לביצוע פעולות
-        # מוחק את נייר הערך מהטבלה לפי השם
-        cursor.execute("DELETE FROM investments WHERE name = ?", (name,))
-        conn.commit()  # שומר את השינויים במסד הנתונים
-        conn.close()  # סוגר את החיבור למסד הנתונים
-
-    def get_securities(self):  # פונקציה לשליפת כל ניירות הערך מהתיק
-        conn = self.get_connection()  # מקבל חיבור למסד הנתונים
-        cursor = conn.cursor()  # יוצר סמן לביצוע פעולות
-        # שולף את השם והמחיר של כל ניירות הערך מהטבלה
-        cursor.execute("SELECT name, price FROM investments")
-        results = cursor.fetchall()  # מקבל את כל התוצאות כרשימה
-        conn.close()  # סוגר את החיבור למסד הנתונים
-        return results  # מחזיר את רשימת ניירות הערך
-    
     def execute_query(self, query, params=None):  # פונקציה כללית לביצוע כל סוג של שאילתה
         """פונקציה כללית לביצוע שאילתות - מאפשרת להריץ כל פקודת SQL"""
         conn = self.get_connection()  # מקבל חיבור למסד הנתונים

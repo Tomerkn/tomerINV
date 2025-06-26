@@ -1,1 +1,1 @@
-web: gunicorn app:app --bind 0.0.0.0:$PORT 
+web: ollama serve & sleep 15 && gunicorn app:app --bind 0.0.0.0:$PORT 
