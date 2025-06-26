@@ -23,8 +23,6 @@ class PortfolioController:  # מחלקה ראשית שמנהלת את כל פע�
         except sqlite3.IntegrityError:  # אם יש שגיאה במסד הנתונים
             return "נייר הערך כבר קיים בתיק ההשקעות."  # מחזיר הודעת שגיאה
 
-
-
     def remove_security(self, name):  # פונקציה למחיקה מלאה של נייר ערך מהתיק
         """מחיקה מלאה של נייר ערך מהתיק"""
         # מוחק את נייר הערך לגמרי מהמסד נתונים
@@ -57,10 +55,27 @@ class PortfolioController:  # מחלקה ראשית שמנהלת את כל פע�
             return portfolio
         return []  # מחזיר רשימה רקה אם אין השקעות
 
-    def get_advice(self, question):  # פונקציה לקבלת ייעוץ מהבינה המלאכותית
+    def get_advice(self, portfolio_data=None, risk_profile="בינוני"):
         """קבלת ייעוץ מסוכן AI"""
-        # שולח את השאלה לבינה המלאכותית ומחזיר את התשובה
-        return self.ollama_model.get_advice(question)
+        # אם לא קיבלנו נתוני תיק, נבנה אותם מהתיק הנוכחי
+        if portfolio_data is None:
+            portfolio = self.get_portfolio()
+            total_value = sum(item['price'] * item['amount'] for item in portfolio)
+            
+            portfolio_data = {
+                'assets': [
+                    {
+                        'name': item['name'],
+                        'value': item['price'] * item['amount'],
+                        'risk_level': item['risk_level']
+                    }
+                    for item in portfolio
+                ],
+                'total_value': total_value
+            }
+        
+        # שולח את נתוני התיק לבינה המלאכותית ומחזיר את התשובה
+        return self.ollama_model.get_advice(portfolio_data, risk_profile)
 
 class RiskManager:  # מחלקה לחישוב סיכונים של השקעות
     # מילון שמגדיר רמת סיכון לכל ענף - ככל שהמספר גבוה יותר, הסיכון גבוה יותר

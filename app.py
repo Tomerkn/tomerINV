@@ -105,13 +105,6 @@ class SecurityForm(FlaskForm):  # טופס להוספת נייר ערך חדש �
     ])
     submit = SubmitField('הוסף')  # כפתור שליחה
 
-
-
-class AdviceForm(FlaskForm):  # טופס לקבלת ייעוץ מהבינה המלאכותית
-    symbol = StringField('סמל מניה לייעוץ', validators=[DataRequired()])  # שדה לסמל המניה (חובה)
-    submit = SubmitField('קבל ייעוץ')  # כפתור שליחה
-
-# הגדרת כל הנתיבים (דפים) שמשתמשים יכולים לגשת אליהם באתר
 @app.route('/login', methods=['GET', 'POST'])  # נתיב לדף כניסה, מקבל בקשות GET (להראות דף) ו-POST (לשלוח טופס)
 def login():  # פונקציה שמטפלת בכניסה למערכת
     if current_user.is_authenticated:  # בודק אם המשתמש כבר מחובר
@@ -180,8 +173,6 @@ def add_security():  # פונקציה להוספת נייר ערך חדש לתי
     
     return render_template('add_security.html', form=form)  # מציג את דף הוספת נייר ערך
 
-
-
 @app.route('/portfolio/delete/<security_name>', methods=['POST'])
 @login_required
 @admin_required
@@ -231,16 +222,15 @@ def update_all_prices():
 @app.route('/advice', methods=['GET', 'POST'])
 @login_required
 def advice():
-    form = AdviceForm()
     advice_text = None
-    if form.validate_on_submit():
-        try:
-            advice_text = portfolio_controller.get_advice(form.symbol.data)
-        except Exception as e:
-            flash(f'שגיאה בקבלת ייעוץ: {str(e)}', 'error')
-            advice_text = "מצטער, לא ניתן לקבל ייעוץ כרגע. אנא וודא שהשירות Ollama פועל."
+    try:
+        # קבלת ייעוץ על בסיס התיק הנוכחי
+        advice_text = portfolio_controller.get_advice()
+    except Exception as e:
+        flash(f'שגיאה בקבלת ייעוץ: {str(e)}', 'error')
+        advice_text = "מצטער, לא ניתן לקבל ייעוץ כרגע. אנא וודא שהשירות Ollama פועל."
     
-    return render_template('advice.html', form=form, advice=advice_text)
+    return render_template('advice.html', advice=advice_text)
 
 @app.route('/risk')
 @login_required

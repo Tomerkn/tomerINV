@@ -8,26 +8,30 @@
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">התייעץ עם הבינה</h5>
-                <form method="POST" class="mb-3">
-                    {{ form.hidden_tag() }}
-                    <div class="row">
-                        <div class="col-md-8">
-                            {{ form.symbol.label(class="form-label") }}
-                            {{ form.symbol(class="form-control", placeholder="לדוגמה: AAPL, TSLA, MSFT") }}
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            {{ form.submit(class="btn btn-primary w-100") }}
-                        </div>
-                    </div>
-                </form>
+                <h5 class="card-title">
+                    <i class="bi bi-robot"></i> ייעוץ AI לתיק שלך
+                </h5>
                 
                 {% if advice %}
-                <div class="alert alert-success">
-                    <h6><i class="bi bi-robot"></i> ייעוץ AI:</h6>
-                    <p class="mb-0">{{ advice }}</p>
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-lightbulb"></i> ייעוץ מקצועי:</h6>
+                    <div class="mt-3">
+                        {{ advice | nl2br }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    לא ניתן לקבל ייעוץ כרגע. אנא וודא שהשירות Ollama פועל.
                 </div>
                 {% endif %}
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        הייעוץ מבוסס על התיק הנוכחי שלך ועל ניתוח סיכונים מתקדם.
+                    </small>
+                </div>
             </div>
         </div>
     </div>
