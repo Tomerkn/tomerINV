@@ -1,6 +1,7 @@
 import random  # ייבוא ספרייה ליצירת מספרים אקראיים
 import ollama  # ייבוא ספרייה לחיבור לשירות Ollama (בינה מלאכותית מקומית)
 import time  # לזמן תגובה
+import os
 
 # AI Agent Class
 class AI_Agent:  # מחלקה שמנהלת את החיבור לבינה המלאכותית לייעוץ השקעות
@@ -8,13 +9,12 @@ class AI_Agent:  # מחלקה שמנהלת את החיבור לבינה המלא
         print("אתחול מחלקה לחיבור ל-AI")  # מדפיס הודעה שהמחלקה התחילה
         self.model_name = "llama3"  # שם המודל של הבינה המלאכותית שנשתמש בו
         self.timeout = 15  # מגביל זמן תגובה ל-15 שניות
-        self.advice_templates = [
-            "לפי הניתוח שלי, {symbol} נראה כמו השקעה טובה לטווח ארוך. המחיר הנוכחי נראה סביר בהתחשב בביצועים ההיסטוריים.",
-            "אני ממליץ על {symbol} כהשקעה יציבה. החברה מראה סימנים חיוביים לצמיחה עתידית.",
-            "המניה {symbol} מציגה פוטנציאל טוב. כדאי לשקול השקעה עם גישה זהירה.",
-            "לפי הנתונים, {symbol} עשויה להיות השקעה מעניינת. עם זאת, חשוב לגוון את התיק.",
-            "אני רואה ב-{symbol} הזדמנות טובה. המחיר הנוכחי נראה אטרקטיבי יחסית לביצועים."
-        ]
+        
+        # הגדרת כתובת Ollama - אם יש משתנה סביבה, משתמש בו, אחרת localhost
+        self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        
+        # הגדרת הלקוח עם הכתובת הנכונה
+        self.client = ollama.Client(host=self.ollama_url)
 
     def get_advice(self, question):  # פונקציה לקבלת ייעוץ השקעות מהבינה המלאכותית
         """קבלת ייעוץ השקעות מודל Ollama"""
@@ -35,7 +35,7 @@ class AI_Agent:  # מחלקה שמנהלת את החיבור לבינה המלא
             """
             
             # שליחת השאלה לollama עם הגבלות
-            response = ollama.generate(
+            response = self.client.generate(
                 model=self.model_name,
                 prompt=simple_prompt.strip(),
                 options={

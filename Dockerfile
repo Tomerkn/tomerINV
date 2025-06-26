@@ -10,9 +10,6 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama
-RUN curl -fsSL https://ollama.ai/install.sh | sh
-
 # Set working directory
 WORKDIR /app
 
@@ -24,11 +21,8 @@ RUN pip install -r requirements.txt
 # Copy application code
 COPY . .
 
-# Download Llama3 model
-RUN ollama pull llama3
-
 # Expose port
 EXPOSE 8000
 
-# Start Ollama service and then the Flask app
-CMD ollama serve & sleep 15 && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 
+# Start the Flask app
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 
