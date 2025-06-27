@@ -1171,7 +1171,7 @@ def setup_database():
         from werkzeug.security import generate_password_hash
         conn = portfolio_model.get_connection()
         cursor = conn.cursor()
-        admin_password_hash = generate_password_hash('admin123')
+        admin_password_hash = generate_password_hash('admin')
         demo_password_hash = generate_password_hash('password123')
         
         cursor.execute("""
