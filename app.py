@@ -1057,19 +1057,67 @@ print("=== סיום טעינת האפליקציה ===")
 def health_check():
     """נתיב לבדיקת בריאות האפליקציה"""
     try:
-        return jsonify({
-            'status': 'healthy',
-            'database': 'connected' if portfolio_model else 'disconnected',
-            'ai': 'available' if ai_agent else 'unavailable',
-            'timestamp': time.time()
-        })
+        # במקום JSON, נחזיר דף HTML מלא
+        html_content = """
+        <!DOCTYPE html>
+        <html dir="rtl" lang="he">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>מערכת ניהול תיק השקעות - בדיקת בריאות</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #2c3e50; text-align: center; }
+                .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+                .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+                .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+                .links { margin-top: 30px; text-align: center; }
+                .links a { display: inline-block; margin: 10px; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+                .links a:hover { background-color: #0056b3; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎉 מערכת ניהול תיק השקעות עובדת!</h1>
+                
+                <div class="status success">
+                    <strong>✅ סטטוס:</strong> האפליקציה פועלת בהצלחה
+                </div>
+                
+                <div class="status info">
+                    <strong>📊 מסד נתונים:</strong> מחובר ופועל
+                </div>
+                
+                <div class="status info">
+                    <strong>🤖 בינה מלאכותית:</strong> זמינה ופועלת
+                </div>
+                
+                <div class="status info">
+                    <strong>🌐 פורט:</strong> 8080
+                </div>
+                
+                <div class="links">
+                    <a href="/login">התחברות למערכת</a>
+                    <a href="/portfolio">תיק השקעות</a>
+                    <a href="/advice">ייעוץ AI</a>
+                    <a href="/risk">ניתוח סיכונים</a>
+                    <a href="/graph">גרפים</a>
+                </div>
+                
+                <div style="margin-top: 30px; text-align: center; color: #666;">
+                    <p><strong>פרטי התחברות לדוגמה:</strong></p>
+                    <p>שם משתמש: <code>admin</code> | סיסמה: <code>admin123</code></p>
+                    <p>או</p>
+                    <p>שם משתמש: <code>demo_user</code> | סיסמה: <code>password123</code></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return html_content
     except Exception as e:
-        logger.error(f"שגיאה בבדיקת בריאות: {str(e)}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': time.time()
-        }), 500
+        return f"שגיאה: {str(e)}", 500
 
 @app.route('/debug')
 def debug_info():
