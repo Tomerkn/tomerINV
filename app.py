@@ -14,6 +14,8 @@ import io
 import os
 import logging
 
+print("=== התחלת ייבוא ספריות ===")
+
 # מביאים הקלסים שיצרנו בקבצים אחרים
 from dbmodel import PortfolioModel
 from portfolio_controller import PortfolioController, RiskManager
@@ -416,6 +418,7 @@ def test():
 
 print("=== כל הנתיבים נרשמו בהצלחה ===")
 print("=== האפליקציה מוכנה להפעלה ===")
+print("=== סיום טעינת האפליקציה ===")
 
 # מפעילים את האתר
 if __name__ == '__main__':
