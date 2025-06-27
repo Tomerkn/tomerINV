@@ -6,21 +6,17 @@ version: '3.8'
 
 services:
   # שירות 1: אפליקציית Flask
-  flask-app:
+  flaskapp:
     build: .
-    container_name: inv_web01
-    ports:
-      - "8080:8080"
+    container_name: flaskapp
     environment:
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/investments
+      - DATABASE_URL=postgresql://postgres:WaPnQYjKJlhQJKCoNYbZxQRldTRJmTWW@shortline.proxy.rlwy.net:23148/railway
       - OLLAMA_URL=http://ollama:11434
-      - PORT=8080
+      - PORT=4000
+    ports:
+      - "4000:4000"
     depends_on:
-      - postgres
       - ollama
-    networks:
-      - investment-network
-    restart: unless-stopped
 
   # שירות 2: מסד נתונים PostgreSQL
   postgres:
@@ -40,16 +36,10 @@ services:
 
   # שירות 3: שרת Ollama לבינה מלאכותית
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama
     container_name: ollama
     ports:
       - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_MODELS=llama3.1:8b
-    networks:
-      - investment-network
     restart: unless-stopped
 
 volumes:

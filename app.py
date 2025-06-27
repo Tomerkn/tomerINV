@@ -44,12 +44,11 @@ except Exception as e:
 
 print("=== התחלת ייבוא ollamamodel ===")
 try:
-    from ollamamodel import AI_Agent, OllamaModel
+    from ollamamodel import AI_Agent
     print("=== סיום ייבוא ollamamodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
-    logger.error(f"שגיאה בייבוא ollamamodel: {str(e)}")
-    ai_agent = None
+    AI_Agent = None
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -937,9 +936,13 @@ def inject_cloud_data():
         
         # הוספת משתמשים לדוגמה
         print("מוסיף משתמשים...")
+        from werkzeug.security import generate_password_hash
+        admin_password_hash = generate_password_hash('admin')
+        demo_password_hash = generate_password_hash('password123')
+        
         users = [
-            ('admin', 'pbkdf2:sha256:600000$admin_hash$admin123', 'admin@example.com', 'admin'),
-            ('demo_user', 'pbkdf2:sha256:600000$demo_hash$password123', 'demo@example.com', 'user')
+            ('admin', admin_password_hash, 'admin@example.com', 'admin'),
+            ('demo_user', demo_password_hash, 'demo@example.com', 'user')
         ]
         
         for user in users:
@@ -976,7 +979,7 @@ def inject_cloud_data():
         </ul>
         
         <h3>פרטי התחברות:</h3>
-        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
         <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
         
         <h3>קישורים מהירים:</h3>
@@ -1148,7 +1151,7 @@ def setup_database():
                 <li><strong>ניירות ערך:</strong> {len(existing_securities)} מניות ואגרות חוב</li>
             </ul>
             <h3>פרטי התחברות:</h3>
-            <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+            <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
             <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
             <h3>קישורים מהירים:</h3>
             <p><a href="/login">התחברות למערכת</a></p>
@@ -1211,7 +1214,7 @@ def setup_database():
             <li><strong>ניירות ערך:</strong> {added_count} מניות ואגרות חוב (מחירים בזמן אמת מה-API)</li>
         </ul>
         <h3>פרטי התחברות:</h3>
-        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
         <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
         <h3>קישורים מהירים:</h3>
         <p><a href="/login">התחברות למערכת</a></p>
