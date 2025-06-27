@@ -107,16 +107,26 @@ class SecurityForm(FlaskForm):  # טופס להוספת נייר ערך חדש �
 
 @app.route('/login', methods=['GET', 'POST'])  # נתיב לדף כניסה, מקבל בקשות GET (להראות דף) ו-POST (לשלוח טופס)
 def login():  # פונקציה שמטפלת בכניסה למערכת
-    if current_user.is_authenticated:  # בודק אם המשתמש כבר מחובר
-        return redirect(url_for('index'))  # אם כן, מפנה אותו לדף הבית
-    form = LoginForm()  # יוצר טופס כניסה חדש
-    if form.validate_on_submit():  # בודק אם הטופס נשלח ועבר אימות
-        user = USERS.get(form.username.data)  # מחפש את המשתמש ברשימת המשתמשים
-        if user and user.check_password(form.password.data):  # בודק אם המשתמש קיים והסיסמה נכונה
-            login_user(user)  # מחבר את המשתמש למערכת
-            return redirect(url_for('index'))  # מפנה אותו לדף הבית
-        flash('שם משתמש או סיסמה שגויים', 'danger')  # מציג הודעת שגיאה אם הפרטים שגויים
-    return render_template('login.html', form=form)  # מציג את דף הכניסה עם הטופס
+    try:
+        if current_user.is_authenticated:  # בודק אם המשתמש כבר מחובר
+            return redirect(url_for('index'))  # אם כן, מפנה אותו לדף הבית
+        
+        # וודא שמסד הנתונים נוצר
+        portfolio_model.create_tables()
+        
+        form = LoginForm()  # יוצר טופס כניסה חדש
+        if form.validate_on_submit():  # בודק אם הטופס נשלח ועבר אימות
+            user = USERS.get(form.username.data)  # מחפש את המשתמש ברשימת המשתמשים
+            if user and user.check_password(form.password.data):  # בודק אם המשתמש קיים והסיסמה נכונה
+                login_user(user)  # מחבר את המשתמש למערכת
+                return redirect(url_for('index'))  # מפנה אותו לדף הבית
+            flash('שם משתמש או סיסמה שגויים', 'danger')  # מציג הודעת שגיאה אם הפרטים שגויים
+        return render_template('login.html', form=form)  # מציג את דף הכניסה עם הטופס
+    except Exception as e:
+        # לוג השגיאה לבדיקה
+        print(f"שגיאה בדף הכניסה: {str(e)}")
+        flash('שגיאה פנימית בשרת. אנא נסה שוב מאוחר יותר.', 'danger')
+        return render_template('login.html', form=LoginForm())
 
 @app.route('/logout')  # נתיב ליציאה מהמערכת
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
@@ -127,16 +137,28 @@ def logout():  # פונקציה שמטפלת ביציאה מהמערכת
 @app.route('/')  # נתיב לדף הבית הראשי של האתר
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def index():  # פונקציה שמציגה את דף הבית
-    portfolio = portfolio_controller.get_portfolio()  # מקבל את כל ניירות הערך בתיק
-    # מחשב את הערך הכולל של התיק על ידי כפל מחיר בכמות לכל נייר ערך
-    total_value = sum(item['price'] * item['amount'] for item in portfolio)
-    asset_count = len(portfolio)  # סופר כמה ניירות ערך יש בתיק
-    
-    # מעביר את הנתונים לתבנית HTML ומציג את הדף
-    return render_template('index.html',
-                         total_assets=total_value,  # הערך הכולל של התיק
-                         asset_count=asset_count,   # מספר ניירות הערך
-                         portfolio=portfolio)       # רשימת כל ניירות הערך
+    try:
+        # וודא שמסד הנתונים נוצר
+        portfolio_model.create_tables()
+        
+        portfolio = portfolio_controller.get_portfolio()  # מקבל את כל ניירות הערך בתיק
+        # מחשב את הערך הכולל של התיק על ידי כפל מחיר בכמות לכל נייר ערך
+        total_value = sum(item['price'] * item['amount'] for item in portfolio)
+        asset_count = len(portfolio)  # סופר כמה ניירות ערך יש בתיק
+        
+        # מעביר את הנתונים לתבנית HTML ומציג את הדף
+        return render_template('index.html',
+                             total_assets=total_value,  # הערך הכולל של התיק
+                             asset_count=asset_count,   # מספר ניירות הערך
+                             portfolio=portfolio)       # רשימת כל ניירות הערך
+    except Exception as e:
+        # לוג השגיאה לבדיקה
+        print(f"שגיאה בדף הבית: {str(e)}")
+        flash('שגיאה בטעינת הנתונים. אנא נסה שוב.', 'warning')
+        return render_template('index.html',
+                             total_assets=0,
+                             asset_count=0,
+                             portfolio=[])
 
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
