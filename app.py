@@ -18,6 +18,7 @@ import psycopg2
 import sys
 import traceback
 import time
+from datetime import datetime
 
 print("=== התחלת ייבוא ספריות ===")
 print("=== בדיקת משתני סביבה ===")
@@ -1040,48 +1041,23 @@ print("=== סיום טעינת האפליקציה ===")
 # נתיב בדיקת בריאות
 @app.route('/health')
 def health_check():
-    """נתיב לבדיקת בריאות האפליקציה"""
+    """נתיב לבדיקת בריאות האפליקציה - נדרש ל-Railway"""
     try:
-        # במקום JSON, נחזיר דף HTML מלא
-        html_content = """
-        <html>
-        <head>
-            <title>בדיקת סביבה</title>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; direction: rtl; }}
-                .status {{ padding: 10px; margin: 10px 0; border-radius: 5px; }}
-                .success {{ background-color: #d4edda; color: #155724; }}
-                .warning {{ background-color: #fff3cd; color: #856404; }}
-                .error {{ background-color: #f8d7da; color: #721c24; }}
-            </style>
-        </head>
-        <body>
-            <h1>מערכת ניהול תיק השקעות עובדת!</h1>
-            
-            <div class="status success">
-                <strong>סטטוס:</strong> האפליקציה פועלת בהצלחה
-            </div>
-            
-            <div class="status success">
-                <strong>מסד נתונים:</strong> מחובר ופועל
-            </div>
-            
-            <div class="status success">
-                <strong>בינה מלאכותית:</strong> זמינה ופועלת
-            </div>
-            
-            <div class="status success">
-                <strong>פורט:</strong> 8080
-            </div>
-            
-            <p><a href="/">חזרה לדף הראשי</a></p>
-        </body>
-        </html>
-        """
-        return html_content
+        # בדיקת חיבור למסד נתונים
+        conn = portfolio_model.get_connection()
+        conn.close()
+        
+        return {
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        }, 200
     except Exception as e:
-        return f"שגיאה: {str(e)}", 500
+        return {
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }, 500
 
 @app.route('/api/status')
 def api_status():
