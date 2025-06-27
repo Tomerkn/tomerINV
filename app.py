@@ -23,11 +23,25 @@ print(f"OLLAMA_URL: {os.environ.get('OLLAMA_URL')}")
 print(f"=== סיום בדיקת משתני סביבה ===")
 
 # מביאים הקלסים שיצרנו בקבצים אחרים
+print("=== התחלת ייבוא dbmodel ===")
 from dbmodel import PortfolioModel
+print("=== סיום ייבוא dbmodel ===")
+
+print("=== התחלת ייבוא portfolio_controller ===")
 from portfolio_controller import PortfolioController, RiskManager
+print("=== סיום ייבוא portfolio_controller ===")
+
+print("=== התחלת ייבוא securities ===")
 from securities import Stock, Bond
+print("=== סיום ייבוא securities ===")
+
+print("=== התחלת ייבוא ollamamodel ===")
 from ollamamodel import AI_Agent
+print("=== סיום ייבוא ollamamodel ===")
+
+print("=== התחלת ייבוא broker ===")
 import broker
+print("=== סיום ייבוא broker ===")
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -100,10 +114,20 @@ def admin_required(f):  # מקבלת פונקציה ועוטפת אותה בבד
 
 # יצירת מופעים של המחלקות שנצטרך לאורך כל האפליקציה
 print("=== יצירת מופעי המחלקות ===")
+print("=== התחלת יצירת PortfolioModel ===")
 portfolio_model = PortfolioModel()  # יוצר את מסד הנתונים
 print("PortfolioModel נוצר בהצלחה")
+print("=== סיום יצירת PortfolioModel ===")
+
+print("=== התחלת יצירת PortfolioController ===")
 portfolio_controller = PortfolioController(portfolio_model)  # יוצר את הקונטרולר שמנהל הכל
 print("PortfolioController נוצר בהצלחה")
+print("=== סיום יצירת PortfolioController ===")
+
+print("=== התחלת יצירת AI_Agent ===")
+ai_agent = AI_Agent()  # יוצר את הסוכן הבינה המלאכותית
+print("=== AI Agent נוצר בהצלחה ===")
+
 print("=== סיום יצירת מופעי המחלקות ===")
 
 # הגדרת כל הטפסים שהמשתמשים יוכלו למלא באתר
@@ -486,18 +510,52 @@ def add_sample_data():
             ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
             ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
             ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
-            ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה")
+            ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה"),
+            ("מיקרוסופט", 8, 300.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("ניוטלה", 15, 50.0, "מזון", "בינוני", "מניה רגילה"),
+            ("פייסבוק", 12, 200.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("נטפליקס", 6, 400.0, "בידור", "גבוה", "מניה רגילה"),
+            ("אגח קונצרנית", 50, 120.0, "פיננסים", "נמוך", "אגח קונצרנית")
         ]
         
+        added_count = 0
         for name, amount, price, industry, variance, security_type in sample_securities:
-            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
-            print(f"נוסף: {name}")
+            try:
+                portfolio_model.add_security(name, amount, price, industry, variance, security_type)
+                print(f"נוסף: {name}")
+                added_count += 1
+            except Exception as e:
+                print(f"שגיאה בהוספת {name}: {str(e)}")
         
-        print("נתונים לדוגמה נוספו בהצלחה")
-        return "<h2>הוספת נתונים לדוגמה</h2><p>הנתונים נוספו בהצלחה! 🎉</p><p><a href='/dbtest'>בדוק טבלאות</a></p>"
+        print(f"נתונים לדוגמה נוספו בהצלחה! נוספו {added_count} ניירות ערך")
+        
+        # בודק את התוכן הסופי
+        all_securities = portfolio_model.get_all_securities()
+        
+        result = f"""
+        <h2>✅ הוספת נתונים לדוגמה - הצליחה!</h2>
+        <p>נוספו {added_count} ניירות ערך למסד הנתונים.</p>
+        <p>סה"כ ניירות ערך במסד: {len(all_securities)}</p>
+        
+        <h3>ניירות ערך שנוספו:</h3>
+        <ul>
+        {''.join([f'<li>{sec["name"]} - {sec["amount"]} יחידות ב-{sec["price"]} ₪ ({sec["industry"]})</li>' for sec in all_securities])}
+        </ul>
+        
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
+        """
+        
+        return result
+        
     except Exception as e:
         print(f"שגיאה בהוספת נתונים: {str(e)}")
-        return f"<h2>שגיאה בהוספת נתונים</h2><p>שגיאה: {str(e)}</p>"
+        return f"""
+        <h2>❌ שגיאה בהוספת נתונים</h2>
+        <p>שגיאה: {str(e)}</p>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
 
 @app.route('/db-admin')
 def db_admin():
@@ -505,20 +563,28 @@ def db_admin():
     print("=== התחלת פונקציית db_admin ===")
     
     html = """
-    <h1>ניהול מסד נתונים</h1>
+    <h1>🗄️ ניהול מסד נתונים</h1>
     <p>ברוכים הבאים לניהול מסד הנתונים של האפליקציה!</p>
     
-    <h2>פעולות זמינות:</h2>
+    <h2>🔧 פעולות זמינות:</h2>
     <ul>
-        <li><a href="/test">בדיקת האפליקציה</a> - בודק שהאפליקציה עובדת</li>
-        <li><a href="/dbtest">בדיקת מסד נתונים</a> - מראה אילו טבלאות קיימות</li>
-        <li><a href="/create-tables">יצירת טבלאות</a> - יוצר טבלאות אם הן לא קיימות</li>
-        <li><a href="/add-sample-data">הוספת נתונים לדוגמה</a> - מוסיף מניות לדוגמה</li>
+        <li><a href="/test">✅ בדיקת האפליקציה</a> - בודק שהאפליקציה עובדת</li>
+        <li><a href="/connection-test">🔌 בדיקת חיבור מפורטת</a> - בודק חיבור למסד הנתונים</li>
+        <li><a href="/dbtest">📋 בדיקת מסד נתונים</a> - מראה אילו טבלאות קיימות</li>
+        <li><a href="/db-status">📊 סטטוס מסד נתונים</a> - מראה תוכן המסד</li>
+        <li><a href="/create-tables">🏗️ יצירת טבלאות</a> - יוצר טבלאות אם הן לא קיימות</li>
+        <li><a href="/add-sample-data">➕ הוספת נתונים לדוגמה</a> - מוסיף מניות לדוגמה</li>
+        <li><a href="/ollama-test">🤖 בדיקת Ollama</a> - בודק חיבור לבינה מלאכותית</li>
+        <li><a href="/env-test">⚙️ בדיקת משתני סביבה</a> - מראה משתני סביבה</li>
     </ul>
     
-    <h2>מידע על המסד:</h2>
+    <h2>📈 מידע על המסד:</h2>
     <p><strong>סוג מסד:</strong> {}</p>
     <p><strong>כתובת:</strong> {}</p>
+    
+    <h2>🚀 קישורים מהירים:</h2>
+    <p><a href="/portfolio">📈 צפייה בתיק השקעות</a></p>
+    <p><a href="/">🏠 דף הבית</a></p>
     """.format(
         'PostgreSQL' if portfolio_model.use_postgres else 'SQLite',
         portfolio_model.db_url
@@ -571,18 +637,105 @@ def db_status():
     try:
         print("=== בדיקת סטטוס מסד הנתונים ===")
         securities = portfolio_model.get_all_securities()
-        return f"""
-        <h2>סטטוס מסד הנתונים:</h2>
+        
+        # מחשב ערך כולל
+        total_value = sum(sec['price'] * sec['amount'] for sec in securities)
+        
+        result = f"""
+        <h2>📊 סטטוס מסד הנתונים</h2>
         <p><strong>סוג מסד:</strong> {'PostgreSQL' if portfolio_model.use_postgres else 'SQLite'}</p>
         <p><strong>כתובת:</strong> {portfolio_model.db_url}</p>
         <p><strong>מספר ניירות ערך:</strong> {len(securities)}</p>
-        <h3>ניירות ערך:</h3>
-        <ul>
-        {''.join([f'<li>{sec["name"]} - {sec["amount"]} יחידות ב-{sec["price"]} ₪</li>' for sec in securities])}
-        </ul>
+        <p><strong>ערך כולל:</strong> {total_value:.2f} ₪</p>
+        
+        <h3>ניירות ערך במסד:</h3>
         """
+        
+        if len(securities) > 0:
+            result += "<ul>"
+            for sec in securities:
+                value = sec['price'] * sec['amount']
+                result += f'<li><strong>{sec["name"]}</strong> - {sec["amount"]} יחידות ב-{sec["price"]} ₪ (ערך: {value:.2f} ₪) - {sec["industry"]}</li>'
+            result += "</ul>"
+        else:
+            result += "<p><em>אין ניירות ערך במסד הנתונים</em></p>"
+            result += "<p><a href='/add-sample-data'>הוסף נתונים לדוגמה</a></p>"
+        
+        result += """
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
+        """
+        
+        return result
+        
     except Exception as e:
-        return f"❌ שגיאה בבדיקת מסד הנתונים: {str(e)}"
+        return f"""
+        <h2>❌ שגיאה בבדיקת מסד הנתונים</h2>
+        <p>שגיאה: {str(e)}</p>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
+
+@app.route('/connection-test')
+def connection_test():
+    """בדיקת חיבור מפורטת למסד הנתונים"""
+    print("=== בדיקת חיבור מפורטת למסד הנתונים ===")
+    try:
+        print("מנסה להתחבר למסד הנתונים...")
+        conn = portfolio_model.get_connection()
+        print("חיבור למסד הנתונים הצליח!")
+        
+        cursor = conn.cursor()
+        print("cursor נוצר בהצלחה")
+        
+        # בודק אילו טבלאות קיימות
+        if portfolio_model.use_postgres:
+            print("משתמש ב-PostgreSQL")
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+        else:
+            print("משתמש ב-SQLite")
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        
+        tables = cursor.fetchall()
+        print(f"נמצאו {len(tables)} טבלאות")
+        
+        # בודק תוכן של טבלת securities אם היא קיימת
+        securities_count = 0
+        if any('securities' in str(table).lower() for table in tables):
+            print("טבלת securities קיימת, בודק תוכן...")
+            cursor.execute("SELECT COUNT(*) FROM securities")
+            securities_count = cursor.fetchone()[0]
+            print(f"מספר ניירות ערך בטבלה: {securities_count}")
+        
+        conn.close()
+        print("חיבור נסגר בהצלחה")
+        
+        result = f"""
+        <h2>✅ בדיקת חיבור למסד הנתונים - הצליחה!</h2>
+        <p><strong>סוג מסד:</strong> {'PostgreSQL' if portfolio_model.use_postgres else 'SQLite'}</p>
+        <p><strong>כתובת:</strong> {portfolio_model.db_url}</p>
+        <p><strong>מספר טבלאות:</strong> {len(tables)}</p>
+        <p><strong>מספר ניירות ערך:</strong> {securities_count}</p>
+        <h3>טבלאות קיימות:</h3>
+        <ul>
+        {''.join([f'<li>{table[0] if isinstance(table, tuple) else table}</li>' for table in tables])}
+        </ul>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
+        
+        print("=== סיום בדיקת חיבור מפורטת ===")
+        return result
+        
+    except Exception as e:
+        print(f"שגיאה בבדיקת חיבור: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <h2>❌ שגיאה בבדיקת חיבור למסד הנתונים</h2>
+        <p><strong>סוג מסד:</strong> {'PostgreSQL' if portfolio_model.use_postgres else 'SQLite'}</p>
+        <p><strong>כתובת:</strong> {portfolio_model.db_url}</p>
+        <p><strong>שגיאה:</strong> {str(e)}</p>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
 
 print("=== כל הנתיבים נרשמו בהצלחה ===")
 print("=== האפליקציה מוכנה להפעלה ===")
@@ -594,6 +747,31 @@ if __name__ == '__main__':
     print("=== יצירת טבלאות במסד הנתונים ===")
     portfolio_model.create_tables()
     print("=== טבלאות נוצרו בהצלחה ===")
+    
+    # הוספת נתונים לדוגמה אם המסד ריק
+    print("=== בדיקת תוכן מסד הנתונים ===")
+    try:
+        securities = portfolio_model.get_all_securities()
+        if len(securities) == 0:
+            print("מסד הנתונים ריק, מוסיף נתונים לדוגמה...")
+            sample_securities = [
+                ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+                ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+                ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
+                ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה"),
+                ("מיקרוסופט", 8, 300.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+                ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה")
+            ]
+            
+            for name, amount, price, industry, variance, security_type in sample_securities:
+                portfolio_model.add_security(name, amount, price, industry, variance, security_type)
+                print(f"נוסף: {name} - {amount} יחידות ב-{price} ₪")
+            
+            print("נתונים לדוגמה נוספו בהצלחה!")
+        else:
+            print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
+    except Exception as e:
+        print(f"שגיאה בהוספת נתונים לדוגמה: {str(e)}")
     
     # מקבל פורט מהסביבה או משתמש ב-4000 כברירת מחדל
     port = int(os.environ.get('PORT', 4000))

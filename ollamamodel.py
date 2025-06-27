@@ -11,22 +11,41 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
     
     def __init__(self):
         """פה אני מתחיל את הסוכן ומתחבר לבינה המלאכותית"""
+        print("=== התחלת אתחול AI_Agent ===")
         # כתובת של Ollama
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        print(f"OLLAMA_URL מהסביבה: {os.environ.get('OLLAMA_URL', 'לא מוגדר')}")
+        print(f"משתמש בכתובת: {self.ollama_url}")
         # איזה מודל להשתמש בו (llama2 זה מודל טוב)
         self.model_name = 'llama2'
+        print(f"מודל שנבחר: {self.model_name}")
         # בודק אם Ollama זמין
+        print("בודק זמינות Ollama...")
         self.ollama_available = self._check_ollama_availability()
         print(f"אתחול מחלקה לחיבור ל-AI - Ollama זמין: {self.ollama_available}")
+        print("=== סיום אתחול AI_Agent ===")
     
     def _check_ollama_availability(self):
         """בודק אם שרת Ollama זמין"""
         try:
+            print(f"מנסה להתחבר ל-Ollama בכתובת: {self.ollama_url}")
             # מנסה להתחבר לשרת Ollama
             response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
-            return response.status_code == 200
+            print(f"תגובה מ-Ollama: {response.status_code}")
+            if response.status_code == 200:
+                print("Ollama זמין ופועל!")
+                return True
+            else:
+                print(f"Ollama הגיב עם קוד שגיאה: {response.status_code}")
+                return False
+        except requests.exceptions.ConnectionError as e:
+            print(f"שגיאת חיבור ל-Ollama: {str(e)}")
+            return False
+        except requests.exceptions.Timeout as e:
+            print(f"פסק זמן בחיבור ל-Ollama: {str(e)}")
+            return False
         except Exception as e:
-            print(f"Ollama לא זמין: {str(e)}")
+            print(f"שגיאה כללית בבדיקת Ollama: {str(e)}")
             return False
     
     def get_investment_advice(self, portfolio_data, risk_profile):
