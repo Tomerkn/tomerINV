@@ -20,10 +20,13 @@ python -c "
 import os
 import sys
 sys.path.append('/app')
-from dbmodel import PortfolioModel
-model = PortfolioModel()
-model.create_tables()
-print('טבלאות נוצרו בהצלחה')
+try:
+    from dbmodel import PortfolioModel
+    model = PortfolioModel()
+    model.create_tables()
+    print('טבלאות נוצרו בהצלחה')
+except Exception as e:
+    print(f'שגיאה ביצירת טבלאות: {e}')
 "
 
 # הזרקת נתוני דוגמה אם המסד ריק
@@ -32,18 +35,24 @@ python -c "
 import os
 import sys
 sys.path.append('/app')
-from dbmodel import PortfolioModel
-model = PortfolioModel()
-securities = model.get_all_securities()
-if not securities:
-    print('מסד הנתונים ריק - מזריק נתוני דוגמה...')
-    from inject_sample_data import inject_sample_data
-    inject_sample_data()
-    print('נתוני דוגמה הוזרקו בהצלחה')
-else:
-    print(f'מסד הנתונים מכיל {len(securities)} ניירות ערך')
+try:
+    from dbmodel import PortfolioModel
+    model = PortfolioModel()
+    securities = model.get_all_securities()
+    if not securities:
+        print('מסד הנתונים ריק - מזריק נתוני דוגמה...')
+        from inject_sample_data import inject_sample_data
+        inject_sample_data()
+        print('נתוני דוגמה הוזרקו בהצלחה')
+    else:
+        print(f'מסד הנתונים מכיל {len(securities)} ניירות ערך')
+except Exception as e:
+    print(f'שגיאה בבדיקת מסד הנתונים: {e}')
 "
 
 # הפעלת האפליקציה המלאה
 echo "=== הפעלת האפליקציה המלאה על פורט $PORT ==="
+echo "=== בדיקת קיום app.py ==="
+ls -la app.py
+echo "=== הפעלת gunicorn עם app:app ==="
 exec gunicorn --bind 0.0.0.0:$PORT --timeout 30 --workers 4 --preload --access-logfile - --error-logfile - app:app 
