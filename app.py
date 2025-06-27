@@ -12,6 +12,7 @@ matplotlib.use('Agg')  # משתמש ב-backend שלא דורש GUI
 import matplotlib.pyplot as plt
 import io
 import os
+import logging
 
 # מביאים הקלסים שיצרנו בקבצים אחרים
 from dbmodel import PortfolioModel
@@ -21,6 +22,10 @@ from ollamamodel import AI_Agent
 import broker
 
 plt.rcParams['font.family'] = ['Arial']  # הגדרת פונט שתומך בעברית
+
+# הוספת לוגים מפורטים
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # יוצרים את האתר - זה הדבר הכי חשוב
 app = Flask(__name__)  # זה יוצר את האתר שלנו
@@ -352,6 +357,25 @@ def generate_pie_chart():
 # אתחול מערכת הבינה המלאכותית כשהאתר מתחיל לרוץ
 print("אתחול מחלקה לחיבור ל-AI")  # הודעה שהבינה המלאכותית מתחילה
 ai_agent = AI_Agent()  # יוצר את הבינה המלאכותית שתייעץ למשתמשים
+
+# טיפול שגיאות כללי
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"שגיאה פנימית בשרת: {error}")
+    logger.error(f"פרטי השגיאה: {str(error)}")
+    return render_template('error.html', error="שגיאה פנימית בשרת"), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    logger.error(f"דף לא נמצא: {error}")
+    return render_template('error.html', error="הדף שחיפשת לא נמצא"), 404
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logger.error(f"שגיאה כללית: {str(e)}")
+    import traceback
+    logger.error(f"פרטי השגיאה: {traceback.format_exc()}")
+    return render_template('error.html', error="שגיאה לא צפויה"), 500
 
 # מפעילים את האתר
 if __name__ == '__main__':
