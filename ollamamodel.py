@@ -3,6 +3,7 @@
 
 import ollama  # פה אני מביא כלי שמאפשר לי לדבר עם שירות Ollama
 import os  # כלי לעבודה עם קבצים וסביבה
+import requests  # כלי לבדיקת חיבור
 
 
 class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – כמו יועץ השקעות חכם
@@ -14,11 +15,27 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
         # איזה מודל להשתמש בו (llama2 זה מודל טוב)
         self.model_name = 'llama2'
-        print("אתחול מחלקה לחיבור ל-AI")
+        # בודק אם Ollama זמין
+        self.ollama_available = self._check_ollama_availability()
+        print(f"אתחול מחלקה לחיבור ל-AI - Ollama זמין: {self.ollama_available}")
+    
+    def _check_ollama_availability(self):
+        """בודק אם שרת Ollama זמין"""
+        try:
+            # מנסה להתחבר לשרת Ollama
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Ollama לא זמין: {str(e)}")
+            return False
     
     def get_investment_advice(self, portfolio_data, risk_profile):
         """פה אני מקבל ייעוץ השקעות מהבינה המלאכותית – כמו לדבר עם מומחה"""
         try:
+            # אם Ollama לא זמין, משתמש בייעוץ פשוט
+            if not self.ollama_available:
+                return self._get_simple_advice_for_portfolio(portfolio_data, risk_profile)
+            
             # פה אני מכין הודעה מפורטת לבינה המלאכותית
             prompt = self._create_investment_prompt(portfolio_data, risk_profile)
             
@@ -30,7 +47,40 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
             
         except Exception as e:
             # אם משהו לא עובד, אני מחזיר ייעוץ בסיסי
-            return f"לא הצלחתי לקבל ייעוץ מהבינה המלאכותית: {str(e)}. כדאי לבדוק את החיבור."
+            print(f"שגיאה בייעוץ השקעות: {str(e)}")
+            return self._get_simple_advice_for_portfolio(portfolio_data, risk_profile)
+    
+    def _get_simple_advice_for_portfolio(self, portfolio_data, risk_profile):
+        """ייעוץ פשוט כשאין חיבור ל-Ollama"""
+        total_value = sum(item['price'] * item['amount'] for item in portfolio_data)
+        num_securities = len(portfolio_data)
+        
+        advice = f"""
+🤖 ייעוץ השקעות פשוט (ללא חיבור לבינה מלאכותית):
+
+📊 סיכום התיק שלך:
+• ערך כולל: {total_value:.2f} ₪
+• מספר ניירות ערך: {num_securities}
+• פרופיל סיכון: {risk_profile}
+
+💡 המלצות כלליות:
+1. פיזור סיכונים - אל תשים את כל הכסף במקום אחד
+2. השקעה לטווח ארוך - אל תמכור מהר כשהמחירים יורדים
+3. בדיקה תקופתית - בדוק את התיק שלך כל חודש
+
+⚠️ סיכונים לשים לב אליהם:
+• שינויים במחירים - המניות יכולות לעלות ולרדת
+• ריכוזיות - אל תשים יותר מדי כסף במניה אחת
+• נזילות - וודא שאתה יכול למכור כשאתה צריך
+
+🔍 טיפים נוספים:
+• למד על ההשקעות שלך לפני שאתה קונה
+• התייעץ עם יועץ השקעות מקצועי
+• אל תשקיע כסף שאתה לא יכול להרשות לעצמך להפסיד
+
+הערה: זה ייעוץ כללי. לפרטים ספציפיים יותר, כדאי להתייעץ עם מומחה.
+"""
+        return advice
     
     def _create_investment_prompt(self, portfolio_data, risk_profile):
         """פה אני יוצר הודעה מפורטת לבינה המלאכותית עם כל המידע על התיק"""

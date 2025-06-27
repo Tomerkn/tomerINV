@@ -1,8 +1,12 @@
 # זה הקובץ שמנהל את כל הנתונים של התיק – שומר, מוסיף, מוחק, מעדכן, הכל
 # אפשר לעבוד עם קובץ במחשב (SQLite) או עם מסד נתונים בענן (PostgreSQL)
 
+print("=== התחלת טעינת dbmodel.py ===")
+
 import sqlite3  # פה אני מביא כלי שמאפשר לי לשמור נתונים בקובץ במחשב
 import os  # כלי לעבודה עם קבצים וסביבה
+
+print("=== ייבוא sqlite3 ו-os הושלם ===")
 
 # פה אני מנסה להביא חיבור למסד נתונים בענן (PostgreSQL), ואם אין – עובד רגיל
 try:
@@ -15,6 +19,7 @@ except ImportError:
     POSTGRES_AVAILABLE = False
     print("ספריות PostgreSQL לא זמינות")
 
+print("=== סיום בדיקת זמינות PostgreSQL ===")
 
 class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל הנתונים של התיק שלי
     """פה אני שומר את כל המידע של התיק – מניות, אג"חים, מחירים, כמויות וכו'"""
@@ -205,3 +210,5 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn.commit()
             conn.close()
             return None 
+
+print("=== סיום טעינת dbmodel.py ===") 

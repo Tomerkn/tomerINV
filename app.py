@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, Response
+from flask import Flask, render_template, redirect, url_for, flash, Response, request
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                         login_required, current_user)
 from flask_wtf import FlaskForm
@@ -13,8 +13,14 @@ import matplotlib.pyplot as plt
 import io
 import os
 import logging
+import requests
 
 print("=== התחלת ייבוא ספריות ===")
+print(f"=== בדיקת משתני סביבה ===")
+print(f"DATABASE_URL: {os.environ.get('DATABASE_URL')}")
+print(f"PORT: {os.environ.get('PORT')}")
+print(f"OLLAMA_URL: {os.environ.get('OLLAMA_URL')}")
+print(f"=== סיום בדיקת משתני סביבה ===")
 
 # מביאים הקלסים שיצרנו בקבצים אחרים
 from dbmodel import PortfolioModel
@@ -40,9 +46,12 @@ login_manager.login_view = 'login'  # איפה לשלוח אנשים שלא הת
 login_manager.login_message = 'אנא התחבר כדי לגשת לדף זה'  # הודעה בעברית
 login_manager.login_message_category = 'warning'  # סוג ההודעה
 print("=== Flask app נוצר בהצלחה ===")
+print("=== SECRET_KEY מוגדר ===")
+print("=== LoginManager מוגדר ===")
 
 # קבוע המרה מדולר לשקל
 USD_TO_ILS_RATE = 3.5
+print(f"=== קבוע המרה מוגדר: {USD_TO_ILS_RATE} ===")
 
 # פונקציית עזר להמיר מדולר לשקל
 def usd_to_ils(usd_price):
@@ -125,6 +134,7 @@ class SecurityForm(FlaskForm):  # טופס להוספת נייר ערך חדש �
 def login():  # פונקציה שמטפלת בכניסה למערכת
     try:
         print("=== התחלת פונקציית login ===")
+        print(f"שיטת הבקשה: {request.method}")
         
         if current_user.is_authenticated:  # בודק אם המשתמש כבר מחובר
             print("משתמש כבר מחובר, מפנה לדף הבית")
@@ -198,21 +208,16 @@ def index():  # פונקציה שמציגה את דף הבית
         
         # מחשב את הערך הכולל של התיק על ידי כפל מחיר בכמות לכל נייר ערך
         total_value = sum(item['price'] * item['amount'] for item in portfolio)
-        asset_count = len(portfolio)  # סופר כמה ניירות ערך יש בתיק
-        print(f"ערך כולל: {total_value}, מספר נכסים: {asset_count}")
+        print(f"ערך כולל של התיק: {total_value}")
         
-        # מעביר את הנתונים לתבנית HTML ומציג את הדף
-        print("מציג דף הבית...")
-        return render_template('index.html',
-                             total_assets=total_value,  # הערך הכולל של התיק
-                             asset_count=asset_count,   # מספר ניירות הערך
-                             portfolio=portfolio)       # רשימת כל ניירות הערך
+        print("מציג דף הבית")
+        return render_template('index.html', portfolio=portfolio, total_value=total_value)  # מציג את דף הבית עם הנתונים
     except Exception as e:
         print(f"שגיאה בדף הבית: {str(e)}")
         import traceback
         traceback.print_exc()
-        flash('שגיאה פנימית בשרת. אנא נסה שוב מאוחר יותר.', 'danger')
-        return render_template('index.html', total_assets=0, asset_count=0, portfolio=[])
+        flash('שגיאה בטעינת דף הבית. אנא נסה שוב.', 'danger')
+        return render_template('error.html', error="שגיאה בטעינת דף הבית")
 
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
@@ -414,7 +419,170 @@ def handle_exception(e):
 @app.route('/test')
 def test():
     """נתיב בדיקה פשוט"""
+    print("=== התחלת פונקציית test ===")
+    print("מישהו התחבר לנתיב הבדיקה")
+    print("=== סיום פונקציית test ===")
     return "האפליקציה עובדת! 🎉"
+
+@app.route('/dbtest')
+def dbtest():
+    """נתיב בדיקה למסד הנתונים - מראה אילו טבלאות קיימות"""
+    print("=== התחלת פונקציית dbtest ===")
+    try:
+        print("מתחבר למסד הנתונים...")
+        conn = portfolio_model.get_connection()
+        cursor = conn.cursor()
+        
+        print("בודק אילו טבלאות קיימות...")
+        if portfolio_model.use_postgres:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        
+        tables = cursor.fetchall()
+        conn.close()
+        
+        print(f"נמצאו {len(tables)} טבלאות")
+        result = f"<h2>בדיקת מסד נתונים</h2>"
+        result += f"<p><strong>סוג מסד:</strong> {'PostgreSQL' if portfolio_model.use_postgres else 'SQLite'}</p>"
+        result += f"<p><strong>כתובת:</strong> {portfolio_model.db_url}</p>"
+        result += f"<p><strong>מספר טבלאות:</strong> {len(tables)}</p>"
+        result += f"<p><strong>טבלאות:</strong></p><ul>"
+        
+        for table in tables:
+            table_name = table[0] if isinstance(table, tuple) else table
+            result += f"<li>{table_name}</li>"
+        
+        result += "</ul>"
+        print("=== סיום פונקציית dbtest ===")
+        return result
+        
+    except Exception as e:
+        print(f"שגיאה בבדיקת מסד: {str(e)}")
+        return f"<h2>שגיאה בבדיקת מסד נתונים</h2><p>שגיאה: {str(e)}</p>"
+
+@app.route('/create-tables')
+def create_tables():
+    """נתיב שיוצר טבלאות במסד הנתונים"""
+    print("=== התחלת פונקציית create_tables ===")
+    try:
+        print("יוצר טבלאות במסד הנתונים...")
+        portfolio_model.create_tables()
+        print("טבלאות נוצרו בהצלחה")
+        return "<h2>יצירת טבלאות</h2><p>הטבלאות נוצרו בהצלחה! 🎉</p><p><a href='/dbtest'>בדוק טבלאות</a></p>"
+    except Exception as e:
+        print(f"שגיאה ביצירת טבלאות: {str(e)}")
+        return f"<h2>שגיאה ביצירת טבלאות</h2><p>שגיאה: {str(e)}</p>"
+
+@app.route('/add-sample-data')
+def add_sample_data():
+    """נתיב שמוסיף נתונים לדוגמה למסד הנתונים"""
+    print("=== התחלת פונקציית add_sample_data ===")
+    try:
+        print("מוסיף נתונים לדוגמה...")
+        
+        # יוצר כמה מניות לדוגמה
+        sample_securities = [
+            ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
+            ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה")
+        ]
+        
+        for name, amount, price, industry, variance, security_type in sample_securities:
+            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
+            print(f"נוסף: {name}")
+        
+        print("נתונים לדוגמה נוספו בהצלחה")
+        return "<h2>הוספת נתונים לדוגמה</h2><p>הנתונים נוספו בהצלחה! 🎉</p><p><a href='/dbtest'>בדוק טבלאות</a></p>"
+    except Exception as e:
+        print(f"שגיאה בהוספת נתונים: {str(e)}")
+        return f"<h2>שגיאה בהוספת נתונים</h2><p>שגיאה: {str(e)}</p>"
+
+@app.route('/db-admin')
+def db_admin():
+    """נתיב ראשי לניהול מסד הנתונים"""
+    print("=== התחלת פונקציית db_admin ===")
+    
+    html = """
+    <h1>ניהול מסד נתונים</h1>
+    <p>ברוכים הבאים לניהול מסד הנתונים של האפליקציה!</p>
+    
+    <h2>פעולות זמינות:</h2>
+    <ul>
+        <li><a href="/test">בדיקת האפליקציה</a> - בודק שהאפליקציה עובדת</li>
+        <li><a href="/dbtest">בדיקת מסד נתונים</a> - מראה אילו טבלאות קיימות</li>
+        <li><a href="/create-tables">יצירת טבלאות</a> - יוצר טבלאות אם הן לא קיימות</li>
+        <li><a href="/add-sample-data">הוספת נתונים לדוגמה</a> - מוסיף מניות לדוגמה</li>
+    </ul>
+    
+    <h2>מידע על המסד:</h2>
+    <p><strong>סוג מסד:</strong> {}</p>
+    <p><strong>כתובת:</strong> {}</p>
+    """.format(
+        'PostgreSQL' if portfolio_model.use_postgres else 'SQLite',
+        portfolio_model.db_url
+    )
+    
+    print("=== סיום פונקציית db_admin ===")
+    return html
+
+@app.route('/ollama-test')
+def ollama_test():
+    """בדיקת חיבור ל-Ollama"""
+    try:
+        print("=== בדיקת חיבור ל-Ollama ===")
+        ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        print(f"מנסה להתחבר ל-Ollama ב: {ollama_url}")
+        
+        # בדיקה פשוטה אם השרת זמין
+        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+        if response.status_code == 200:
+            return f"✅ Ollama זמין ב-{ollama_url}<br>תגובה: {response.text[:200]}..."
+        else:
+            return f"❌ Ollama לא זמין ב-{ollama_url}<br>סטטוס: {response.status_code}"
+    except Exception as e:
+        return f"❌ שגיאה בחיבור ל-Ollama: {str(e)}"
+
+@app.route('/env-test')
+def env_test():
+    """בדיקת משתני סביבה"""
+    print("=== בדיקת משתני סביבה ===")
+    env_vars = {
+        'DATABASE_URL': os.environ.get('DATABASE_URL'),
+        'PORT': os.environ.get('PORT'),
+        'OLLAMA_URL': os.environ.get('OLLAMA_URL'),
+        'RAILWAY_ENVIRONMENT': os.environ.get('RAILWAY_ENVIRONMENT'),
+        'RAILWAY_PROJECT_ID': os.environ.get('RAILWAY_PROJECT_ID')
+    }
+    
+    result = "<h2>משתני סביבה:</h2>"
+    for key, value in env_vars.items():
+        if value:
+            result += f"<p><strong>{key}:</strong> {value}</p>"
+        else:
+            result += f"<p><strong>{key}:</strong> <span style='color: red;'>לא מוגדר</span></p>"
+    
+    return result
+
+@app.route('/db-status')
+def db_status():
+    """בדיקת סטטוס מסד הנתונים"""
+    try:
+        print("=== בדיקת סטטוס מסד הנתונים ===")
+        securities = portfolio_model.get_all_securities()
+        return f"""
+        <h2>סטטוס מסד הנתונים:</h2>
+        <p><strong>סוג מסד:</strong> {'PostgreSQL' if portfolio_model.use_postgres else 'SQLite'}</p>
+        <p><strong>כתובת:</strong> {portfolio_model.db_url}</p>
+        <p><strong>מספר ניירות ערך:</strong> {len(securities)}</p>
+        <h3>ניירות ערך:</h3>
+        <ul>
+        {''.join([f'<li>{sec["name"]} - {sec["amount"]} יחידות ב-{sec["price"]} ₪</li>' for sec in securities])}
+        </ul>
+        """
+    except Exception as e:
+        return f"❌ שגיאה בבדיקת מסד הנתונים: {str(e)}"
 
 print("=== כל הנתיבים נרשמו בהצלחה ===")
 print("=== האפליקציה מוכנה להפעלה ===")
@@ -423,8 +591,13 @@ print("=== סיום טעינת האפליקציה ===")
 # מפעילים את האתר
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")
-    # קביעת הפורט - Railway מספק משתנה סביבה PORT
+    print("=== יצירת טבלאות במסד הנתונים ===")
+    portfolio_model.create_tables()
+    print("=== טבלאות נוצרו בהצלחה ===")
+    
+    # מקבל פורט מהסביבה או משתמש ב-4000 כברירת מחדל
     port = int(os.environ.get('PORT', 4000))
-    print(f"האפליקציה רצה על פורט: {port}")
-    print("=== האפליקציה מוכנה לשימוש ===")
+    print(f"=== האפליקציה רצה על פורט {port} ===")
+    
+    # הרצה עם host='0.0.0.0' כדי שיהיה נגיש מבחוץ
     app.run(host='0.0.0.0', port=port, debug=False)
