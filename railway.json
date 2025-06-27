@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile.simple"
   },
   "deploy": {
-    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --timeout 30 simple_app:app",
+    "startCommand": "python simple_app.py",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
