@@ -485,102 +485,63 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
 
     def __init__(self):
         print("=== התחלת יצירת PortfolioModel ===")
-        self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (אופציונלי)
+        self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (חובה)
         print(f"DATABASE_URL מהסביבה: {self.db_url}")
         
-        # אם אין DATABASE_URL, משתמש ב-SQLite מקומי
+        # דורש DATABASE_URL - רק PostgreSQL נתמך
         if not self.db_url:
-            print("לא מוגדר DATABASE_URL, משתמש ב-SQLite מקומי")
-            self.use_postgres = False
-            self.db_url = "investments.db"  # קובץ SQLite מקומי
-        else:
-            self.use_postgres = True
-            
+            error_msg = "\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n"
+            print(error_msg)
+            raise Exception(error_msg)
+        
+        self.use_postgres = True
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 
     def get_connection(self):
-        """פותח חיבור למסד הנתונים (PostgreSQL או SQLite)"""
+        """פותח חיבור למסד הנתונים PostgreSQL"""
         print("=== התחלת get_connection ===")
-        
-        if self.use_postgres:
-            print(f"מתחבר ל-PostgreSQL: {self.db_url}")
-            try:
-                import psycopg2
-                connection = psycopg2.connect(self.db_url)
-                print("חיבור ל-PostgreSQL הצליח")
-                return connection
-            except Exception as e:
-                print(f"שגיאה בחיבור ל-PostgreSQL: {e}")
-                raise
-        else:
-            print(f"מתחבר ל-SQLite: {self.db_url}")
-            try:
-                import sqlite3
-                connection = sqlite3.connect(self.db_url)
-                print("חיבור ל-SQLite הצליח")
-                return connection
-            except Exception as e:
-                print(f"שגיאה בחיבור ל-SQLite: {e}")
-                raise
+        print(f"מתחבר ל-PostgreSQL: {self.db_url}")
+        try:
+            import psycopg2
+            connection = psycopg2.connect(self.db_url)
+            print("חיבור ל-PostgreSQL הצליח")
+            return connection
+        except Exception as e:
+            print(f"שגיאה בחיבור ל-PostgreSQL: {e}")
+            raise
 
     def init_db(self):
-        """יוצר את הטבלאות אם צריך (PostgreSQL או SQLite)"""
+        """יוצר את הטבלאות אם צריך (PostgreSQL בלבד)"""
         print("=== התחלת init_db ===")
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            if self.use_postgres:
-                print("יוצר טבלת משתמשים ב-PostgreSQL")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id SERIAL PRIMARY KEY,
-                        username VARCHAR(80) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
-                        email VARCHAR(120) UNIQUE,
-                        role VARCHAR(20) DEFAULT 'user',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                print("יוצר טבלת השקעות ב-PostgreSQL")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS investments (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(255) UNIQUE NOT NULL,
-                        amount DECIMAL(10,2) NOT NULL,
-                        price DECIMAL(10,2) NOT NULL,
-                        industry VARCHAR(100),
-                        variance VARCHAR(50),
-                        security_type VARCHAR(100),
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-            else:
-                print("יוצר טבלת משתמשים ב-SQLite")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT UNIQUE NOT NULL,
-                        password_hash TEXT NOT NULL,
-                        email TEXT UNIQUE,
-                        role TEXT DEFAULT 'user',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                print("יוצר טבלת השקעות ב-SQLite")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS investments (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT UNIQUE NOT NULL,
-                        amount REAL NOT NULL,
-                        price REAL NOT NULL,
-                        industry TEXT,
-                        variance TEXT,
-                        security_type TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
+            print("יוצר טבלת משתמשים ב-PostgreSQL")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(80) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    email VARCHAR(120) UNIQUE,
+                    role VARCHAR(20) DEFAULT 'user',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            print("יוצר טבלת השקעות ב-PostgreSQL")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS investments (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) UNIQUE NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    price DECIMAL(10,2) NOT NULL,
+                    industry VARCHAR(100),
+                    variance VARCHAR(50),
+                    security_type VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             
             conn.commit()
             conn.close()
@@ -595,11 +556,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            if self.use_postgres:
-                cursor.execute('SELECT id, username, email FROM users WHERE id = %s', (user_id,))
-            else:
-                cursor.execute('SELECT id, username, email FROM users WHERE id = ?', (user_id,))
-                
+            cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = %s', (user_id,))
             user = cursor.fetchone()
             conn.close()
             
@@ -607,7 +564,9 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
                 return {
                     'id': user[0],
                     'username': user[1],
-                    'email': user[2]
+                    'password_hash': user[2],
+                    'email': user[3],
+                    'role': user[4] if user[4] else 'user'
                 }
             return None
         except Exception as e:
@@ -620,11 +579,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            if self.use_postgres:
-                cursor.execute('SELECT id, username, password_hash, email FROM users WHERE username = %s', (username,))
-            else:
-                cursor.execute('SELECT id, username, password_hash, email FROM users WHERE username = ?', (username,))
-                
+            cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = %s', (username,))
             user = cursor.fetchone()
             conn.close()
             
@@ -633,7 +588,8 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
                     'id': user[0],
                     'username': user[1],
                     'password_hash': user[2],
-                    'email': user[3]
+                    'email': user[3],
+                    'role': user[4] if user[4] else 'user'
                 }
             return None
         except Exception as e:
@@ -646,16 +602,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            if self.use_postgres:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email)
-                    VALUES (%s, %s, %s)
-                ''', (username, password, email))
-            else:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email)
-                    VALUES (?, ?, ?)
-                ''', (username, password, email))
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, email)
+                VALUES (%s, %s, %s)
+            ''', (username, password, email))
                 
             conn.commit()
             conn.close()
@@ -669,16 +619,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        if self.use_postgres:
-            cursor.execute('''
-                INSERT INTO investments (name, amount, price, industry, variance, security_type)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (name, amount, price, industry, variance, security_type))
-        else:
-            cursor.execute('''
-                INSERT INTO investments (name, amount, price, industry, variance, security_type)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (name, amount, price, industry, variance, security_type))
+        cursor.execute('''
+            INSERT INTO investments (name, amount, price, industry, variance, security_type)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (name, amount, price, industry, variance, security_type))
             
         conn.commit()
         conn.close()
@@ -716,10 +660,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        if self.use_postgres:
-            cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
-        else:
-            cursor.execute('DELETE FROM investments WHERE name = ?', (name,))
+        cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
             
         conn.commit()
         conn.close()

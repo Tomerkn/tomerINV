@@ -32,7 +32,7 @@ print("=== סיום בדיקת משתני סביבה ===")
 # מביאים הקלסים שיצרנו בקבצים אחרים
 print("=== התחלת ייבוא dbmodel ===")
 try:
-    from dbmodel import PortfolioModel
+    from dbmodel import PortfolioModel, Broker
     print("=== סיום ייבוא dbmodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא dbmodel: {str(e)}")
@@ -99,7 +99,18 @@ USERS = {
 @login_manager.user_loader  # פונקציה שמוצאת משתמש לפי מספר זיהוי
 def load_user(user_id):  # מקבלת מספר זיהוי של משתמש
     try:
-        return portfolio_model.get_user_by_id(int(user_id))
+        # בדיקה אם portfolio_model קיים
+        if 'portfolio_model' in globals():
+            user_data = portfolio_model.get_user_by_id(int(user_id))
+            if user_data:
+                # יוצר אובייקט User מהנתונים במסד
+                return User(
+                    id=user_data['id'],
+                    username=user_data['username'],
+                    password_hash=user_data['password_hash'],
+                    role=user_data.get('role', 'user')
+                )
+        return None
     except Exception as e:
         logger.error(f"שגיאה בטעינת משתמש: {str(e)}")
         return None
@@ -1162,32 +1173,24 @@ def setup_database():
         cursor = conn.cursor()
         admin_password_hash = generate_password_hash('admin123')
         demo_password_hash = generate_password_hash('password123')
-        if portfolio_model.use_postgres:
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, email, role)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (username) DO UPDATE SET
-                    password_hash = EXCLUDED.password_hash,
-                    email = EXCLUDED.email,
-                    role = EXCLUDED.role
-            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, email, role)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (username) DO UPDATE SET
-                    password_hash = EXCLUDED.password_hash,
-                    email = EXCLUDED.email,
-                    role = EXCLUDED.role
-            """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
-        else:
-            cursor.execute("""
-                INSERT OR REPLACE INTO users (username, password_hash, email, role)
-                VALUES (?, ?, ?, ?)
-            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
-            cursor.execute("""
-                INSERT OR REPLACE INTO users (username, password_hash, email, role)
-                VALUES (?, ?, ?, ?)
-            """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
+        
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, email, role)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (username) DO UPDATE SET
+                password_hash = EXCLUDED.password_hash,
+                email = EXCLUDED.email,
+                role = EXCLUDED.role
+        """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, email, role)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (username) DO UPDATE SET
+                password_hash = EXCLUDED.password_hash,
+                email = EXCLUDED.email,
+                role = EXCLUDED.role
+        """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
+        
         conn.commit()
         conn.close()
         print("משתמשים נוספו בהצלחה")
@@ -1298,7 +1301,6 @@ def check_env():
             'OLLAMA_URL': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
             'FLASK_ENV': os.environ.get('FLASK_ENV', 'לא מוגדר'),
             'PYTHONPATH': os.environ.get('PYTHONPATH', 'לא מוגדר'),
-            'use_postgres': portfolio_model.use_postgres,
             'db_url': portfolio_model.db_url
         }
         
