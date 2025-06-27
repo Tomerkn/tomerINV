@@ -2,9 +2,9 @@
 
 מערכת Flask לניהול תיק השקעות עם בינה מלאכותית (Ollama) ומסד נתונים PostgreSQL.
 
-## 🚀 פריסה בענן
+## 🚀 פריסה בענן - Railway
 
-### אפשרות 1: Railway (מומלץ)
+### הוראות פריסה ל-Railway
 
 1. **התחבר ל-Railway**:
    - היכנס ל-[railway.app](https://railway.app)
@@ -23,111 +23,129 @@
    - Railway יזהה את ה-Dockerfile ויפרוס אוטומטית
    - האפליקציה תהיה זמינה בכתובת שניתנת
 
-### אפשרות 2: Heroku
-
-1. **התקן Heroku CLI**:
-   ```bash
-   # macOS
-   brew install heroku/brew/heroku
-   
-   # Windows
-   # הורד מ: https://devcenter.heroku.com/articles/heroku-cli
-   ```
-
-2. **התחבר ל-Heroku**:
-   ```bash
-   heroku login
-   ```
-
-3. **צור אפליקציה**:
-   ```bash
-   heroku create your-app-name
-   ```
-
-4. **הוסף מסד נתונים**:
-   ```bash
-   heroku addons:create heroku-postgresql:mini
-   ```
-
-5. **הגדר משתני סביבה**:
-   ```bash
-   heroku config:set DATABASE_URL=$(heroku config:get DATABASE_URL)
-   ```
-
-6. **פרוס**:
-   ```bash
-   git push heroku main
-   ```
-
-### אפשרות 3: Docker Compose (מקומי)
-
-להרצה מקומית עם Docker:
+### סקריפט פריסה מהיר
 
 ```bash
-# הפעל את כל השירותים
-docker-compose up --build
-
-# או ברקע
-docker-compose up -d --build
+./deploy.sh
+# בחר אפשרות 1 (Railway)
 ```
 
-## 🔧 משתני סביבה נדרשים
+## 🏃‍♂️ הרצה מקומית
 
-- `DATABASE_URL`: כתובת PostgreSQL (נדרש)
-- `PORT`: פורט להרצה (נקבע אוטומטית בענן)
-- `OLLAMA_URL`: כתובת Ollama (אופציונלי)
+### דרישות מקדימות
 
-## 📁 מבנה הפרויקט
+- Python 3.11+
+- PostgreSQL (מקומי או בענן)
+- Ollama (אופציונלי)
+
+### התקנה
+
+1. **שכפל את הפרויקט**:
+   ```bash
+   git clone <your-repo-url>
+   cd tomerINV
+   ```
+
+2. **התקן תלויות**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **הגדר משתני סביבה**:
+   ```bash
+   export DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+   export PORT=4000
+   export OLLAMA_URL="http://localhost:11434"  # אופציונלי
+   ```
+
+4. **הרץ את האפליקציה**:
+   ```bash
+   python app.py
+   ```
+
+### הרצה עם Docker
+
+```bash
+# הרצה עם Docker Compose (כולל Ollama)
+docker-compose up
+
+# או רק האפליקציה
+docker build -t portfolio-app .
+docker run -p 4000:4000 -e DATABASE_URL="your-postgres-url" portfolio-app
+```
+
+## 📊 תכונות
+
+- **ניהול תיק השקעות**: הוספה, עריכה ומחיקה של השקעות
+- **ניתוח סיכונים**: חישוב וריאנס וסטיית תקן
+- **בינה מלאכותית**: ייעוץ השקעות עם Ollama
+- **ממשק משתמש**: דפי אינטרנט נוחים לשימוש
+- **מסד נתונים**: PostgreSQL לעמידות ומהירות
+
+## 🗄️ מבנה מסד הנתונים
+
+### טבלת משתמשים (users)
+- `id`: מזהה ייחודי
+- `username`: שם משתמש
+- `password_hash`: סיסמה מוצפנת
+
+### טבלת השקעות (investments)
+- `id`: מזהה ייחודי
+- `name`: שם ההשקעה
+- `amount`: כמות יחידות
+- `price`: מחיר ליחידה
+- `industry`: ענף
+- `variance`: וריאנס
+- `security_type`: סוג נייר ערך
+
+## 🔧 פיתוח
+
+### מבנה הפרויקט
 
 ```
 tomerINV/
 ├── app.py                 # האפליקציה הראשית
 ├── dbmodel.py            # מודל מסד הנתונים
-├── ollamamodel.py        # חיבור ל-Ollama
+├── ollamamodel.py        # מודל AI
 ├── templates/            # תבניות HTML
 ├── static/               # קבצים סטטיים
-├── Dockerfile           # הגדרת Docker
-├── docker-compose.yml   # הגדרת שירותים מקומיים
-├── railway.json         # הגדרת Railway
-├── Procfile             # הגדרת Heroku
-└── requirements.txt     # תלויות Python
+├── requirements.txt      # תלויות Python
+├── Dockerfile           # קונפיגורציה ל-Docker
+├── docker-compose.yml   # קונפיגורציה ל-Docker Compose
+└── railway.json         # קונפיגורציה ל-Railway
 ```
 
-## 🛠️ פיתוח מקומי
+### הוספת תכונות חדשות
 
-```bash
-# התקן תלויות
-pip install -r requirements.txt
+1. **הוסף נתיב חדש ב-`app.py`**
+2. **צור תבנית HTML ב-`templates/`**
+3. **עדכן את מודל הנתונים ב-`dbmodel.py` אם נדרש**
+4. **בדוק שהכל עובד מקומית**
+5. **דחוף ל-Git ו-Railway יעדכן אוטומטית**
 
-# הגדר משתני סביבה
-export DATABASE_URL="your_postgresql_url"
-export PORT=4000
+## 🆘 פתרון בעיות
 
-# הפעל את האפליקציה
-python app.py
-```
+### בעיות נפוצות
 
-## 🔍 בדיקת בריאות
+**האפליקציה לא מתחברת למסד הנתונים**:
+- ודא ש-`DATABASE_URL` מוגדר נכון
+- בדוק שהמסד זמין ונגיש
 
-האפליקציה כוללת נתיב `/health` לבדיקת בריאות:
+**Ollama לא עובד**:
+- ודא ש-Ollama פועל על `localhost:11434`
+- או הגדר `OLLAMA_URL` לכתובת הנכונה
 
-```bash
-curl http://your-app-url/health
-```
+**האפליקציה לא נפתחת**:
+- בדוק שהפורט פנוי
+- נסה פורט אחר עם `export PORT=4001`
 
-## 📊 תכונות
+## 📞 תמיכה
 
-- ✅ ניהול משתמשים והרשאות
-- ✅ הוספת/עריכת/מחיקת השקעות
-- ✅ חישובי סיכון ורווח
-- ✅ גרפים ותרשימים
-- ✅ ייעוץ בינה מלאכותית (Ollama)
-- ✅ פריסה בענן
-- ✅ מסד נתונים PostgreSQL
+אם יש לך בעיות או שאלות:
+1. בדוק את הלוגים ב-Railway
+2. בדוק את משתני הסביבה
+3. ודא שכל התלויות מותקנות
 
-## 🚨 הערות חשובות
+---
 
-1. **מסד הנתונים**: חייב להיות PostgreSQL בענן
-2. **Ollama**: אופציונלי - האפליקציה תעבוד גם בלי
-3. **אבטחה**: משתמש admin/admin כברירת מחדל
-4. **נתונים**: האפליקציה תוסיף נתונים לדוגמה אם המסד ריק
+**מערכת ניהול תיק השקעות** - פותח עם ❤️ ב-Python ו-Flask
