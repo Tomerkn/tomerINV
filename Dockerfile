@@ -24,8 +24,8 @@ ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 
-# פותח פורט 4000
-EXPOSE 4000
+# פותח פורט 8080
+EXPOSE 8080
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
 CMD ["./start.sh"] 

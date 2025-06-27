@@ -10,7 +10,7 @@ echo "OLLAMA_URL: $OLLAMA_URL"
 
 # הגדרת פורט ברירת מחדל אם לא מוגדר
 if [ -z "$PORT" ]; then
-    export PORT=4000
+    export PORT=8080
     echo "הגדרת פורט ברירת מחדל: $PORT"
 fi
 
@@ -54,5 +54,5 @@ except Exception as e:
 echo "=== הפעלת האפליקציה המלאה על פורט $PORT ==="
 echo "=== בדיקת קיום app.py ==="
 ls -la app.py
-echo "=== הפעלת gunicorn עם app:app ==="
+echo "=== הפעלת gunicorn עם app:app על פורט $PORT ==="
 exec gunicorn --bind 0.0.0.0:$PORT --timeout 30 --workers 4 --preload --access-logfile - --error-logfile - app:app 
