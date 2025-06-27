@@ -30,22 +30,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (אם יש)
         print(f"DATABASE_URL מהסביבה: {self.db_url}")
         self.use_postgres = False  # האם לעבוד בענן או לא
-        if self.db_url and POSTGRES_AVAILABLE:
-            try:
-                if self.db_url.startswith('postgres://') or \
-                   self.db_url.startswith('postgresql://'):
-                    self.use_postgres = True  # עובד בענן
-                    print("משתמש ב-PostgreSQL בענן")
-                else:
-                    self.db_url = 'investments.db'  # עובד מקומי
-                    print("משתמש ב-SQLite מקומי")
-            except Exception as e:
-                print(f"שגיאה בבדיקת DATABASE_URL: {e}")
-                self.db_url = 'investments.db'
-                print("משתמש ב-SQLite מקומי")
+        if self.db_url:
+            self.use_postgres = True
+        elif os.environ.get('RAILWAY_STATIC_URL') or os.environ.get('RENDER') or os.environ.get('FLY_APP_NAME'):
+            raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה של Railway/Render.\n\nהסבר מלא: פתח את README.md וחפש 'DATABASE_URL' או פנה לעוזר.\n\n")
         else:
-            self.db_url = 'investments.db'
-            print("משתמש ב-SQLite מקומי")
+            self.db_url = 'investments.db'  # הרצה מקומית בלבד
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 

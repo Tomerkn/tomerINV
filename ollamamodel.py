@@ -16,8 +16,8 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
         print(f"OLLAMA_URL מהסביבה: {os.environ.get('OLLAMA_URL', 'לא מוגדר')}")
         print(f"משתמש בכתובת: {self.ollama_url}")
-        # איזה מודל להשתמש בו (llama2 זה מודל טוב)
-        self.model_name = 'llama2'
+        # איזה מודל להשתמש בו (llama3.1:8b זה מודל חדש שמתאים ל-8GB RAM)
+        self.model_name = 'llama3.1:8b'
         print(f"מודל שנבחר: {self.model_name}")
         # בודק אם Ollama זמין
         print("בודק זמינות Ollama...")
@@ -73,29 +73,39 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         """ייעוץ פשוט כשאין חיבור ל-Ollama"""
         total_value = sum(item['price'] * item['amount'] for item in portfolio_data)
         num_securities = len(portfolio_data)
+        most_expensive_stock = max(portfolio_data, key=lambda x: x['price'])['name']
+        most_expensive_value = max(portfolio_data, key=lambda x: x['price'])['price']
+        cheapest_stock = min(portfolio_data, key=lambda x: x['price'])['name']
+        cheapest_value = min(portfolio_data, key=lambda x: x['price'])['price']
         
         advice = f"""
-🤖 ייעוץ השקעות פשוט (ללא חיבור לבינה מלאכותית):
+ייעוץ השקעות פשוט (ללא חיבור לבינה מלאכותית):
 
-📊 סיכום התיק שלך:
+סיכום התיק שלך:
 • ערך כולל: {total_value:.2f} ₪
 • מספר ניירות ערך: {num_securities}
 • פרופיל סיכון: {risk_profile}
+• מניה יקרה ביותר: {most_expensive_stock} ({most_expensive_value:.2f} ₪)
+• מניה זולה ביותר: {cheapest_stock} ({cheapest_value:.2f} ₪)
 
-💡 המלצות כלליות:
-1. פיזור סיכונים - אל תשים את כל הכסף במקום אחד
-2. השקעה לטווח ארוך - אל תמכור מהר כשהמחירים יורדים
-3. בדיקה תקופתית - בדוק את התיק שלך כל חודש
+המלצות כלליות:
+1. פיזור השקעות - אל תשים את כל הכסף במניה אחת
+2. השקעה לטווח ארוך - מניות יכולות לעלות ולרדת בטווח קצר
+3. מחקר - קרא על החברות לפני השקעה
+4. סבלנות - השקעות טובות לוקחות זמן
 
-⚠️ סיכונים לשים לב אליהם:
+סיכונים לשים לב אליהם:
 • שינויים במחירים - המניות יכולות לעלות ולרדת
 • ריכוזיות - אל תשים יותר מדי כסף במניה אחת
 • נזילות - וודא שאתה יכול למכור כשאתה צריך
 
-🔍 טיפים נוספים:
+טיפים נוספים:
 • למד על ההשקעות שלך לפני שאתה קונה
 • התייעץ עם יועץ השקעות מקצועי
 • אל תשקיע כסף שאתה לא יכול להרשות לעצמך להפסיד
+• בדוק את הביצועים של המניות שלך באופן קבוע
+• שקול להוסיף מניות מתחומים שונים לפיזור טוב יותר
+• התייעץ עם יועץ השקעות מקצועי לקבלת ייעוץ מותאם אישית
 
 הערה: זה ייעוץ כללי. לפרטים ספציפיים יותר, כדאי להתייעץ עם מומחה.
 """

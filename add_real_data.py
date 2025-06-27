@@ -56,5 +56,5 @@ def insert_stocks_to_db():
     print('סיימתי להכניס מניות למסד הנתונים!')
 
 if __name__ == '__main__':
-    print("🚀 מתחיל הוספת נתונים אמיתיים למסד הנתונים...")
+    print("מתחיל הוספת נתונים אמיתיים למסד הנתונים...")
     insert_stocks_to_db()  # מריץ את הפונקציה הראשית 

@@ -1,117 +1,167 @@
-# מערכת ניהול השקעות פשוטה
+# אפליקציית ניהול תיק השקעות
 
-זו אפליקציה פשוטה לניהול תיק השקעות. היא מאפשרת לך לעקוב אחרי המניות שלך, לראות גרפים יפים, ולקבל ייעוץ מהמחשב החכם.
+אפליקציית Flask לניהול תיק השקעות עם בינה מלאכותית, מסד נתונים PostgreSQL, ומודל Llama3.1 8B.
 
-## מה האפליקציה עושה
+## תכונות עיקריות
 
-- מנהלת תיק השקעות עם מניות אמיתיות
-- מראה גרפים יפים של התיק שלך
-- בודקת סיכונים ומזהירה אותך
-- נותנת ייעוץ מהבינה המלאכותית
-- עובדת גם מקומי וגם בענן
+- ניהול תיק השקעות אישי
+- מעקב אחר מניות וניירות ערך
+- ייעוץ השקעות מבוסס בינה מלאכותית
+- ניתוח סיכונים
+- גרפים ואינדיקטורים
+- ממשק משתמש בעברית
 
-## איך להתקין ולהפעיל
+## התקנה מהירה
 
-### התקנה מקומית
+### דרישות מערכת
+- **RAM:** מינימום 8GB (מומלץ 16GB)
+- **CPU:** 4 vCPU ומעלה
+- **דיסק:** 20GB פנוי
+- **Docker & Docker Compose**
 
-1. תוריד את הקוד למחשב שלך
-2. תתקין Python 3.11
-3. תריץ בטרמינל:
+### הפעלה אוטומטית
+```bash
+# הורדת הפרויקט
+git clone <repository-url>
+cd tomerINV
+
+# הפעלת סקריפט ההתקנה
+./setup.sh
 ```
+
+### הפעלה ידנית
+```bash
+# התקנת Docker (אם לא מותקן)
+brew install --cask docker  # macOS
+open /Applications/Docker.app
+
+# הפעלת האפליקציה
+docker-compose up -d --build
+
+# צפייה בלוגים
+docker-compose logs -f
+```
+
+## כתובות גישה
+
+- **האפליקציה:** http://localhost:4000
+- **Ollama API:** http://localhost:11434
+- **PostgreSQL:** localhost:5432
+
+## משתמשים לדוגמה
+
+- **admin / admin123**
+- **demo_user / password123**
+
+## ארכיטקטורה
+
+האפליקציה כוללת 3 שירותים:
+
+1. **web** - האפליקציה הראשית (Flask)
+2. **db** - מסד נתונים PostgreSQL
+3. **ollama** - שירות בינה מלאכותית עם מודל Llama3.1 8B
+
+## ניהול השירותים
+
+### פקודות שימושיות
+```bash
+# צפייה בסטטוס
+docker-compose ps
+
+# צפייה בלוגים
+docker-compose logs -f
+
+# עצירת השירותים
+docker-compose down
+
+# הפעלה מחדש
+docker-compose restart
+
+# עדכון קוד
+docker-compose up -d --build
+
+# ניקוי מלא
+./cleanup.sh
+```
+
+## פיתוח
+
+### הרצה מקומית (ללא Docker)
+```bash
+# התקנת תלויות
 pip install -r requirements.txt
-```
 
-4. תריץ את האפליקציה:
-```
+# הפעלת האפליקציה
 python app.py
 ```
 
-5. תיכנס לדפדפן ותלך לכתובת: http://localhost:4000
-
-### התחברות ראשונה
-
-- שם משתמש: admin
-- סיסמה: admin123
-
-## איך להשתמש באפליקציה
-
-### דף הבית
-רואה סקירה כללית של התיק שלך - כמה שווה, כמה מניות יש לך, ומה רמת הסיכון.
-
-### תיק השקעות
-רואה את כל המניות שלך עם מחירים עדכניים. יכול להוסיף מניות חדשות או למחוק ישנות.
-
-### גרפים
-רואה גרפים יפים שמראים איך התיק שלך מחולק בין המניות השונות.
-
-### ניהול סיכונים
-בודק כמה מסוכן התיק שלך ומזהיר אותך אם יש יותר מדי סיכון.
-
-### ייעוץ מהבינה
-מקבל עצות מהמחשב החכם איך לשפר את התיק שלך.
-
-## הוספת נתונים אמיתיים
-
-אם אתה רוצה להוסיף מניות אמיתיות:
-
-1. תריץ את הסקריפט להוספת נתונים:
+### מבנה הפרויקט
 ```
-python add_real_data.py
+tomerINV/
+├── app.py                 # האפליקציה הראשית
+├── dbmodel.py            # מודל מסד הנתונים
+├── portfolio_controller.py # בקר תיק השקעות
+├── ollamamodel.py        # מודל בינה מלאכותית
+├── securities.py         # ניהול ניירות ערך
+├── broker.py             # סימולציית ברוקר
+├── docker-compose.yml    # הגדרות Docker
+├── Dockerfile           # תמונת האפליקציה
+├── requirements.txt     # תלויות Python
+├── setup.sh            # סקריפט התקנה
+├── cleanup.sh          # סקריפט ניקוי
+├── templates/          # תבניות HTML
+├── public/            # קבצים סטטיים
+└── instance/          # נתונים מקומיים
 ```
 
-2. זה יוסיף מניות ישראליות ואמריקאיות אמיתיות למסד הנתונים.
+## פתרון בעיות
 
-## פריסה בענן
+### בעיות נפוצות
 
-אם אתה רוצה לשים את האפליקציה באינטרנט:
+1. **Docker לא זמין**
+   ```bash
+   open /Applications/Docker.app
+   ```
 
-### Railway
-1. תירשם ב-Railway
-2. תחבר את הפרויקט שלך
-3. תגדיר משתני סביבה:
-   - DATABASE_URL: כתובת מסד הנתונים
-   - OLLAMA_URL: כתובת שירות הבינה המלאכותית
+2. **פורט תפוס**
+   ```bash
+   lsof -i :4000
+   docker-compose down
+   ```
 
-### Render
-1. תירשם ב-Render
-2. תחבר את הפרויקט שלך
-3. תגדיר את אותם משתני סביבה
+3. **זיכרון לא מספיק**
+   ```bash
+   docker stats
+   # עדכן מגבלות ב-docker-compose.yml
+   ```
 
-## בעיות נפוצות
+4. **מודל לא נטען**
+   ```bash
+   docker-compose logs ollama
+   ```
 
-### האפליקציה לא נפתחת
-- בדוק שPython מותקן
-- בדוק שכל החבילות מותקנות
-- בדוק שהפורט 4000 פנוי
+### לוגים מפורטים
+```bash
+# לוגים של כל השירותים
+docker-compose logs -f
 
-### אין מחירים עדכניים
-- בדוק שיש חיבור לאינטרנט
-- בדוק שהברוקר עובד
-- נסה לעדכן מחירים ידנית
+# לוגים של שירות ספציפי
+docker-compose logs -f web
+docker-compose logs -f ollama
+docker-compose logs -f db
+```
 
-### הבינה המלאכותית לא עובדת
-- בדוק שOllama מותקן ורץ
-- בדוק שיש חיבור לאינטרנט
-- בדוק את משתנה הסביבה OLLAMA_URL
+## תרומה
 
-## תמיכה
-
-אם יש לך בעיות:
-1. בדוק את הלוגים בטרמינל
-2. בדוק שכל השירותים רצים
-3. נסה להפעיל מחדש את האפליקציה
-
-## גרסאות
-
-- גרסה 1.0: אפליקציה בסיסית לניהול תיק
-- גרסה 1.1: הוספת גרפים וניתוח סיכונים
-- גרסה 1.2: הוספת בינה מלאכותית לייעוץ
-- גרסה 1.3: תמיכה בענן ונתונים אמיתיים
+1. Fork את הפרויקט
+2. צור branch חדש
+3. בצע שינויים
+4. שלח Pull Request
 
 ## רישיון
 
-האפליקציה הזו היא חינמית לשימוש אישי.
+MIT License
 
----
+## תמיכה
 
-**בהצלחה עם ההשקעות שלך! 🚀📈**
+לבעיות נוספות, בדוק את הלוגים או פנה לעזרה עם פרטי השגיאה.

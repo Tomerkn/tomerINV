@@ -1,6 +1,3 @@
-# קובץ docker-compose לפריסה מקומית
-# זה מאפשר להריץ את האפליקציה עם Docker
-
 version: '3.8'
 
 services:
@@ -14,6 +11,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - PORT=${PORT:-4000}
       - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this}
     depends_on:
       - db
       - ollama
@@ -26,6 +24,8 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+    networks:
+      - app-network
 
   # מסד נתונים PostgreSQL
   db:
@@ -36,8 +36,6 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     deploy:
       resources:
@@ -45,12 +43,12 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+    networks:
+      - app-network
 
   # שירות Ollama עם מודל Llama3.1 8B
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
@@ -58,7 +56,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G  # מגביל ל-6GB למודל
+          memory: 6G
         reservations:
           memory: 4G
     restart: unless-stopped
@@ -70,10 +68,15 @@ services:
         echo '=== מוריד מודל llama3.1:8b ===' &&
         ollama pull llama3.1:8b &&
         echo '=== מודל llama3.1:8b מוכן! ===' &&
-        echo '=== Ollama פועל על http://localhost:11434 ===' &&
         wait
       "
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
-  ollama_data: 
+  ollama_data:
+
+networks:
+  app-network:
+    driver: bridge 

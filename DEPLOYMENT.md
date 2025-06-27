@@ -114,4 +114,126 @@ pip install sniffio==1.3.0
 ### 5. בעיות עם Ollama
 - וודא שה-OLLAMA_URL נכון
 - וודא ש-Ollama רץ ונגיש
-- בדוק את הלוגים לפרטי השגיאה 
+- בדוק את הלוגים לפרטי השגיאה
+
+# הוראות פריסה עם Docker
+
+## סקירה כללית
+האפליקציה כוללת 3 שירותים:
+1. **web** - האפליקציה הראשית (Flask)
+2. **db** - מסד נתונים PostgreSQL
+3. **ollama** - שירות בינה מלאכותית עם מודל Llama3.1 8B
+
+## דרישות מערכת
+- **RAM:** מינימום 8GB (מומלץ 16GB)
+- **CPU:** 8 vCPU
+- **דיסק:** 20GB פנוי
+- **Docker & Docker Compose**
+
+## הוראות הפעלה
+
+### 1. הכנה
+```bash
+# שכפול הפרויקט
+git clone <repository-url>
+cd tomerINV
+
+# יצירת קובץ .env (אופציונלי)
+cp .env.example .env
+```
+
+### 2. הפעלת האפליקציה
+```bash
+# בנייה והפעלה של כל השירותים
+docker-compose up -d
+
+# צפייה בלוגים
+docker-compose logs -f
+
+# צפייה בלוגים של שירות ספציפי
+docker-compose logs -f web
+docker-compose logs -f ollama
+docker-compose logs -f db
+```
+
+### 3. בדיקת סטטוס
+```bash
+# בדיקת שירותים
+docker-compose ps
+
+# בדיקת זיכרון
+docker stats
+
+# בדיקת האפליקציה
+curl http://localhost:4000/health
+```
+
+## כתובות גישה
+- **האפליקציה:** http://localhost:4000
+- **Ollama API:** http://localhost:11434
+- **PostgreSQL:** localhost:5432
+
+## ניהול השירותים
+
+### עצירת השירותים
+```bash
+docker-compose down
+```
+
+### הפעלה מחדש
+```bash
+docker-compose restart
+```
+
+### עדכון קוד
+```bash
+# עצירה
+docker-compose down
+
+# בנייה מחדש
+docker-compose build --no-cache
+
+# הפעלה
+docker-compose up -d
+```
+
+### ניקוי נתונים
+```bash
+# מחיקת כל הנתונים (זהירות!)
+docker-compose down -v
+docker volume rm tomerinv_postgres_data tomerinv_ollama_data
+```
+
+## פתרון בעיות
+
+### בעיות זיכרון
+אם יש בעיות זיכרון, עדכן את `docker-compose.yml`:
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 4G  # במקום 6G
+```
+
+### בעיות חיבור
+```bash
+# בדיקת לוגים
+docker-compose logs ollama
+docker-compose logs web
+
+# בדיקת רשת
+docker network ls
+docker network inspect tomerinv_default
+```
+
+### איטיות
+- בדוק שהמודל נטען: `docker-compose logs ollama`
+- בדוק זיכרון: `docker stats`
+- שקול מודל קטן יותר: `llama3.1:3b`
+
+## משתמשים לדוגמה
+- **admin / admin123**
+- **demo_user / password123**
+
+## תמיכה
+לבעיות נוספות, בדוק את הלוגים או פנה לעזרה. 

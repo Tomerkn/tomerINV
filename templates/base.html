@@ -11,8 +11,7 @@
     <title>{% block title %}מערכת ניהול השקעות{% endblock %}</title>
     <!-- מביא CSS יפה מהאינטרנט לעיצוב -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- מביא אייקונים יפים מהאינטרנט -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet"> -->
     <style>
         /* עיצוב כל הדף */
         body {
@@ -97,28 +96,27 @@
                 <nav class="nav flex-column">
                     <!-- קישור לדף הבית -->
                     <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
-                        <i class="bi bi-house-door"></i> דף הבית
+                        דף הבית
                     </a>
                     <!-- קישור לתיק ההשקעות -->
                     <a class="nav-link {% if request.endpoint == 'portfolio' %}active{% endif %}" href="{{ url_for('portfolio') }}">
-                        <i class="bi bi-briefcase"></i> תיק השקעות
+                        תיק השקעות
                     </a>
                     <!-- קישור לגרפים יפים -->
                     <a class="nav-link {% if request.endpoint == 'graph' %}active{% endif %}" href="{{ url_for('graph') }}">
-                        <i class="bi bi-graph-up"></i> גרפים
+                        גרפים
                     </a>
                     <!-- קישור לבדיקת סיכונים -->
                     <a class="nav-link {% if request.endpoint == 'risk' %}active{% endif %}" href="{{ url_for('risk') }}">
-                        <i class="bi bi-shield"></i> ניהול סיכונים
+                        ניהול סיכונים
                     </a>
                     <!-- קישור לקבלת ייעוץ מהמחשב החכם -->
                     <a class="nav-link {% if request.endpoint == 'advice' %}active{% endif %}" href="{{ url_for('advice') }}">
-                        <i class="bi bi-robot"></i> התייעץ עם הבינה
+                        התייעץ עם הבינה
                     </a>
-
                     <!-- קישור לצאת מהמערכת -->
                     <a class="nav-link" href="{{ url_for('logout') }}">
-                        <i class="bi bi-box-arrow-right"></i> התנתק
+                        התנתק
                     </a>
                 </nav>
             </div>
