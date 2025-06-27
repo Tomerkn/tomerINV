@@ -108,23 +108,44 @@ class SecurityForm(FlaskForm):  # טופס להוספת נייר ערך חדש �
 @app.route('/login', methods=['GET', 'POST'])  # נתיב לדף כניסה, מקבל בקשות GET (להראות דף) ו-POST (לשלוח טופס)
 def login():  # פונקציה שמטפלת בכניסה למערכת
     try:
+        print("=== התחלת פונקציית login ===")
+        
         if current_user.is_authenticated:  # בודק אם המשתמש כבר מחובר
+            print("משתמש כבר מחובר, מפנה לדף הבית")
             return redirect(url_for('index'))  # אם כן, מפנה אותו לדף הבית
         
         # וודא שמסד הנתונים נוצר
+        print("יוצר טבלאות במסד הנתונים...")
         portfolio_model.create_tables()
+        print("טבלאות נוצרו בהצלחה")
         
         form = LoginForm()  # יוצר טופס כניסה חדש
+        print(f"טופס נוצר, validate_on_submit: {form.validate_on_submit()}")
+        
         if form.validate_on_submit():  # בודק אם הטופס נשלח ועבר אימות
-            user = USERS.get(form.username.data)  # מחפש את המשתמש ברשימת המשתמשים
-            if user and user.check_password(form.password.data):  # בודק אם המשתמש קיים והסיסמה נכונה
+            username = form.username.data
+            password = form.password.data
+            print(f"ניסיון התחברות עם שם משתמש: {username}")
+            
+            user = USERS.get(username)  # מחפש את המשתמש ברשימת המשתמשים
+            print(f"משתמש נמצא: {user is not None}")
+            
+            if user and user.check_password(password):  # בודק אם המשתמש קיים והסיסמה נכונה
+                print("סיסמה נכונה, מתחבר...")
                 login_user(user)  # מחבר את המשתמש למערכת
+                print("התחברות הצליחה")
                 return redirect(url_for('index'))  # מפנה אותו לדף הבית
-            flash('שם משתמש או סיסמה שגויים', 'danger')  # מציג הודעת שגיאה אם הפרטים שגויים
+            else:
+                print("שם משתמש או סיסמה שגויים")
+                flash('שם משתמש או סיסמה שגויים', 'danger')  # מציג הודעת שגיאה אם הפרטים שגויים
+        
+        print("מציג דף כניסה")
         return render_template('login.html', form=form)  # מציג את דף הכניסה עם הטופס
     except Exception as e:
         # לוג השגיאה לבדיקה
         print(f"שגיאה בדף הכניסה: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash('שגיאה פנימית בשרת. אנא נסה שוב מאוחר יותר.', 'danger')
         return render_template('login.html', form=LoginForm())
 
