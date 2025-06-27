@@ -1,0 +1,35 @@
+# קובץ docker-compose לפריסה מקומית
+# זה מאפשר להריץ את האפליקציה עם Docker
+
+version: '3.8'
+
+services:
+  # השירות הראשי - האפליקציה שלנו
+  web:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - DATABASE_URL=postgresql://user:password@db:5432/investments
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # מסד הנתונים PostgreSQL
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=investments
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 
