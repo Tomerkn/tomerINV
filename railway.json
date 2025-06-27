@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "dockerfilePath": "Dockerfile.simple"
   },
   "deploy": {
-    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --timeout 30 --workers 4 --preload app:app",
+    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --timeout 30 simple_app:app",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
