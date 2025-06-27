@@ -485,58 +485,104 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
 
     def __init__(self):
         print("=== התחלת יצירת PortfolioModel ===")
-        self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (חובה)
+        self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (אופציונלי)
         print(f"DATABASE_URL מהסביבה: {self.db_url}")
+        
+        # אם אין DATABASE_URL, משתמש ב-SQLite מקומי
         if not self.db_url:
-            raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n")
-        self.use_postgres = True
+            print("לא מוגדר DATABASE_URL, משתמש ב-SQLite מקומי")
+            self.use_postgres = False
+            self.db_url = "investments.db"  # קובץ SQLite מקומי
+        else:
+            self.use_postgres = True
+            
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 
     def get_connection(self):
-        """פותח חיבור למסד הנתונים בענן (חובה)"""
+        """פותח חיבור למסד הנתונים (PostgreSQL או SQLite)"""
         print("=== התחלת get_connection ===")
-        print(f"מתחבר ל-Postgres עם SQLAlchemy: {self.db_url}")
-        try:
-            import sqlalchemy
-            engine = sqlalchemy.create_engine(self.db_url)
-            connection = engine.raw_connection()
-            print("חיבור ל-Postgres הצליח")
-            return connection
-        except Exception as e:
-            print(f"שגיאה בחיבור ל-Postgres: {e}")
-            raise
+        
+        if self.use_postgres:
+            print(f"מתחבר ל-Postgres עם SQLAlchemy: {self.db_url}")
+            try:
+                import sqlalchemy
+                engine = sqlalchemy.create_engine(self.db_url)
+                connection = engine.raw_connection()
+                print("חיבור ל-Postgres הצליח")
+                return connection
+            except Exception as e:
+                print(f"שגיאה בחיבור ל-Postgres: {e}")
+                raise
+        else:
+            print(f"מתחבר ל-SQLite: {self.db_url}")
+            try:
+                import sqlite3
+                connection = sqlite3.connect(self.db_url)
+                print("חיבור ל-SQLite הצליח")
+                return connection
+            except Exception as e:
+                print(f"שגיאה בחיבור ל-SQLite: {e}")
+                raise
 
     def init_db(self):
-        """יוצר את הטבלאות אם צריך (רק ב-PostgreSQL)"""
+        """יוצר את הטבלאות אם צריך (PostgreSQL או SQLite)"""
         print("=== התחלת init_db ===")
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            print("יוצר טבלת משתמשים ב-Postgres")
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(80) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    email VARCHAR(120) UNIQUE,
-                    role VARCHAR(20) DEFAULT 'user',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            print("יוצר טבלת השקעות ב-Postgres")
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS investments (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) UNIQUE NOT NULL,
-                    amount DECIMAL(10,2) NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    industry VARCHAR(100),
-                    variance VARCHAR(50),
-                    security_type VARCHAR(100),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+            
+            if self.use_postgres:
+                print("יוצר טבלת משתמשים ב-Postgres")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username VARCHAR(80) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        email VARCHAR(120) UNIQUE,
+                        role VARCHAR(20) DEFAULT 'user',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                print("יוצר טבלת השקעות ב-Postgres")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS investments (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(255) UNIQUE NOT NULL,
+                        amount DECIMAL(10,2) NOT NULL,
+                        price DECIMAL(10,2) NOT NULL,
+                        industry VARCHAR(100),
+                        variance VARCHAR(50),
+                        security_type VARCHAR(100),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            else:
+                print("יוצר טבלת משתמשים ב-SQLite")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        email TEXT UNIQUE,
+                        role TEXT DEFAULT 'user',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                print("יוצר טבלת השקעות ב-SQLite")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS investments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT UNIQUE NOT NULL,
+                        amount REAL NOT NULL,
+                        price REAL NOT NULL,
+                        industry TEXT,
+                        variance TEXT,
+                        security_type TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            
             conn.commit()
             conn.close()
             print("טבלאות נוצרו בהצלחה")
@@ -549,7 +595,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT id, username, email FROM users WHERE id = %s', (user_id,))
+            
+            if self.use_postgres:
+                cursor.execute('SELECT id, username, email FROM users WHERE id = %s', (user_id,))
+            else:
+                cursor.execute('SELECT id, username, email FROM users WHERE id = ?', (user_id,))
+                
             user = cursor.fetchone()
             conn.close()
             
@@ -569,7 +620,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT id, username, password_hash, email FROM users WHERE username = %s', (username,))
+            
+            if self.use_postgres:
+                cursor.execute('SELECT id, username, password_hash, email FROM users WHERE username = %s', (username,))
+            else:
+                cursor.execute('SELECT id, username, password_hash, email FROM users WHERE username = ?', (username,))
+                
             user = cursor.fetchone()
             conn.close()
             
@@ -590,10 +646,18 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO users (username, password_hash, email)
-                VALUES (%s, %s, %s)
-            ''', (username, password, email))
+            
+            if self.use_postgres:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email)
+                    VALUES (%s, %s, %s)
+                ''', (username, password, email))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email)
+                    VALUES (?, ?, ?)
+                ''', (username, password, email))
+                
             conn.commit()
             conn.close()
             return True
@@ -605,10 +669,18 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         """פה אני מוסיף מניה/אג"ח חדשה לתיק"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO investments (name, amount, price, industry, variance, security_type)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (name, amount, price, industry, variance, security_type))
+        
+        if self.use_postgres:
+            cursor.execute('''
+                INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (name, amount, price, industry, variance, security_type))
+        else:
+            cursor.execute('''
+                INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (name, amount, price, industry, variance, security_type))
+            
         conn.commit()
         conn.close()
         return f"נייר הערך {name} נוסף בהצלחה"
@@ -644,7 +716,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         """פה אני מוחק מניה/אג"ח מהתיק"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
+        
+        if self.use_postgres:
+            cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
+        else:
+            cursor.execute('DELETE FROM investments WHERE name = ?', (name,))
+            
         conn.commit()
         conn.close()
         return f"נייר הערך {name} נמחק בהצלחה"

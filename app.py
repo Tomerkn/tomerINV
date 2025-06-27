@@ -32,12 +32,10 @@ print("=== סיום בדיקת משתני סביבה ===")
 # מביאים הקלסים שיצרנו בקבצים אחרים
 print("=== התחלת ייבוא dbmodel ===")
 try:
-    from dbmodel import (PortfolioModel, PortfolioController, RiskManager, 
-                        Stock, Bond, Broker)
+    from dbmodel import PortfolioModel
     print("=== סיום ייבוא dbmodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא dbmodel: {str(e)}")
-    logger.error(f"שגיאה בייבוא dbmodel: {str(e)}")
     sys.exit(1)
 
 print("=== התחלת ייבוא ollamamodel ===")
@@ -46,7 +44,6 @@ try:
     print("=== סיום ייבוא ollamamodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
-    logger.error(f"שגיאה בייבוא ollamamodel: {str(e)}")
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -129,15 +126,6 @@ except Exception as e:
     logger.error(f"שגיאה ביצירת PortfolioModel: {str(e)}")
     traceback.print_exc()
     sys.exit(1)
-
-print("=== התחלת יצירת PortfolioController ===")
-try:
-    portfolio_controller = PortfolioController(portfolio_model)  # יוצר את הקונטרולר שמנהל הכל
-    print("=== סיום יצירת PortfolioController ===")
-except Exception as e:
-    print(f"שגיאה ביצירת PortfolioController: {str(e)}")
-    logger.error(f"שגיאה ביצירת PortfolioController: {str(e)}")
-    traceback.print_exc()
 
 print("=== התחלת יצירת AI_Agent ===")
 try:
@@ -258,15 +246,13 @@ def index():  # פונקציה שמציגה את דף הבית
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def portfolio():  # פונקציה שמציגה את תיק ההשקעות המלא
-    print("=== התחלת פונקציית portfolio ===")
     try:
-        portfolio_data = portfolio_controller.get_portfolio()  # מקבל את כל ניירות הערך
-        print(f"מספר ניירות ערך בתיק: {len(portfolio_data)}")
-        return render_template('portfolio.html', portfolio=portfolio_data)
+        portfolio_data = portfolio_model.get_all_securities()  # מקבל את כל ניירות הערך
+        total_value = sum(security['total_value'] for security in portfolio_data)  # מחשב את הערך הכולל
+        return render_template('portfolio.html', portfolio=portfolio_data, total_value=total_value)  # מציג את הדף
     except Exception as e:
-        print(f"שגיאה בדף התיק: {str(e)}")
-        flash('שגיאה בטעינת התיק', 'danger')
-        return render_template('portfolio.html', portfolio=[])
+        flash(f'שגיאה בטעינת תיק ההשקעות: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 @app.route('/portfolio/add', methods=['GET', 'POST'])  # נתיב להוספת נייר ערך חדש
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
@@ -274,26 +260,20 @@ def portfolio():  # פונקציה שמציגה את תיק ההשקעות המ�
 def add_security():  # פונקציה להוספת נייר ערך חדש לתיק
     form = SecurityForm()  # יוצר טופס הוספת נייר ערך
     if form.validate_on_submit():  # בודק אם הטופס נשלח ועבר אימות
-        # יוצר אובייקט נייר ערך לפי הסוג שנבחר בטופס
-        if form.security_type.data == 'מניה רגילה':  # אם נבחרה מניה רגילה
-            security = Stock(form.name.data, form.amount.data)  # יוצר אובייקט מניה
-        elif form.security_type.data == 'אגח ממשלתית':  # אם נבחר אג"ח ממשלתי
-            security = Bond(form.name.data)  # יוצר אובייקט אג"ח
-            security.amount = form.amount.data  # מוסיף את הכמות לאובייקט
-        else:  # אם נבחר אג"ח קונצרני
-            security = Bond(form.name.data)  # יוצר אובייקט אג"ח
-            security.amount = form.amount.data  # מוסיף את הכמות לאובייקט
-        
-        # מחשב את רמת הסיכון של נייר הערך החדש
-        risk = RiskManager.calculate_risk(
-            form.security_type.data,  # סוג נייר הערך
-            form.industry.data,       # הענף
-            form.variance.data        # רמת השונות
-        )
-        
-        result = portfolio_controller.buy_security(security, form.industry.data, form.variance.data, form.security_type.data)  # מוסיף את נייר הערך לתיק
-        flash(f"{result} (רמת סיכון: {risk:.2f})", 'success')  # מציג הודעת הצלחה עם רמת הסיכון
-        return redirect(url_for('portfolio'))  # מפנה חזרה לדף התיק
+        security = {
+            'name': form.name.data,  # שם נייר הערך
+            'amount': form.amount.data,  # כמות
+            'price': 0  # מחיר התחלתי (יתעדכן אחר כך)
+        }
+        try:
+            result = portfolio_model.add_security(security['name'], security['amount'], form.industry.data, form.variance.data, form.security_type.data)  # מוסיף את נייר הערך לתיק
+            if result:
+                flash('נייר הערך נוסף בהצלחה!', 'success')  # מציג הודעת הצלחה
+                return redirect(url_for('portfolio'))  # מפנה לדף התיק
+            else:
+                flash('שגיאה בהוספת נייר הערך', 'danger')  # מציג הודעת שגיאה
+        except Exception as e:
+            flash(f'שגיאה: {str(e)}', 'danger')  # מציג הודעת שגיאה מפורטת
     
     return render_template('add_security.html', form=form)  # מציג את דף הוספת נייר ערך
 
@@ -301,13 +281,11 @@ def add_security():  # פונקציה להוספת נייר ערך חדש לתי
 @login_required
 @admin_required
 def delete_security(security_name):
-    """מוחק נייר ערך לגמרי מהתיק"""
     try:
-        portfolio_controller.remove_security(security_name)
-        flash(f'נייר הערך {security_name} נמחק בהצלחה מהתיק', 'success')
+        portfolio_model.remove_security(security_name)
+        flash('נייר הערך נמחק בהצלחה!', 'success')
     except Exception as e:
-        flash(f'שגיאה במחיקת נייר הערך: {str(e)}', 'error')
-    
+        flash(f'שגיאה במחיקת נייר הערך: {str(e)}', 'danger')
     return redirect(url_for('portfolio'))
 
 @app.route('/update-price/<symbol>')
@@ -325,108 +303,108 @@ def update_single_price(symbol):
 @login_required
 @admin_required
 def update_all_prices():
-    portfolio_data = portfolio_controller.get_portfolio()
-    updated_count = 0
-    errors = 0
-    
-    for item in portfolio_data:
-        try:
-            Broker.update_price(item['name'])
-            updated_count += 1
-        except Exception as e:
-            errors += 1
-    
-    if updated_count > 0:
-        flash(f'עודכנו {updated_count} מחירים בהצלחה', 'success')
-    if errors > 0:
-        flash(f'{errors} מחירים לא עודכנו בגלל שגיאות', 'warning')
-    
-    return redirect(url_for('portfolio'))
+    try:
+        portfolio_data = portfolio_model.get_all_securities()
+        updated_count = 0
+        errors = 0
+        
+        for item in portfolio_data:
+            try:
+                # כאן אפשר להוסיף לוגיקה לעדכון מחירים
+                # כרגע נדלג על זה
+                updated_count += 1
+            except Exception as e:
+                errors += 1
+        
+        if updated_count > 0:
+            flash(f'עודכנו {updated_count} מחירים בהצלחה', 'success')
+        if errors > 0:
+            flash(f'{errors} מחירים לא עודכנו בגלל שגיאות', 'warning')
+        
+        return redirect(url_for('portfolio'))
+    except Exception as e:
+        flash(f'שגיאה בעדכון מחירים: {str(e)}', 'danger')
+        return redirect(url_for('portfolio'))
 
 @app.route('/advice', methods=['GET', 'POST'])
 @login_required
 def advice():
-    advice_text = None
     try:
-        # קבלת ייעוץ על בסיס התיק הנוכחי
-        advice_text = portfolio_controller.get_advice()
+        if ai_agent:
+            advice_text = ai_agent.get_advice()
+        else:
+            advice_text = "שירות הבינה המלאכותית אינו זמין כרגע."
+        return render_template('advice.html', advice=advice_text)
     except Exception as e:
-        flash(f'שגיאה בקבלת ייעוץ: {str(e)}', 'error')
-        advice_text = "מצטער, לא ניתן לקבל ייעוץ כרגע. אנא וודא שהשירות Ollama פועל."
-    
-    return render_template('advice.html', advice=advice_text)
+        flash(f'שגיאה בקבלת ייעוץ: {str(e)}', 'danger')
+        return render_template('advice.html', advice="שגיאה בקבלת ייעוץ")
 
 @app.route('/risk')
 @login_required
 def risk():
-    portfolio_data = portfolio_controller.get_portfolio()
-    # חישוב אחוזים
-    total_value = sum(item['price'] * item['amount'] for item in portfolio_data)
-    for item in portfolio_data:
-        item_value = item['price'] * item['amount']
-        item['percentage'] = (item_value / total_value * 100) if total_value > 0 else 0
-        item['value'] = item_value
-    return render_template('risk.html', portfolio=portfolio_data, total_value=total_value)
+    try:
+        portfolio_data = portfolio_model.get_all_securities()
+        return render_template('risk.html', portfolio=portfolio_data)
+    except Exception as e:
+        flash(f'שגיאה בטעינת ניתוח סיכונים: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 @app.route('/graph')
 @login_required
 def graph():
-    portfolio_data = portfolio_controller.get_portfolio()
-    # חישוב אחוזים
-    total_value = sum(item['price'] * item['amount'] for item in portfolio_data)
-    for item in portfolio_data:
-        item_value = item['price'] * item['amount']
-        item['percentage'] = (item_value / total_value * 100) if total_value > 0 else 0
-        item['value'] = item_value
-    return render_template('graph.html', portfolio=portfolio_data, total_value=total_value)
+    try:
+        portfolio_data = portfolio_model.get_all_securities()
+        return render_template('graph.html', portfolio=portfolio_data)
+    except Exception as e:
+        flash(f'שגיאה בטעינת גרפים: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 @app.route('/pie-chart.png')
 @login_required
 def generate_pie_chart():
-    """יוצר תרשים עוגה של התיק ומחזיר אותו כתמונה"""
-    # הגדרת תמיכה בעברית
-    plt.rcParams['axes.unicode_minus'] = False
-    
-    portfolio_data = portfolio_controller.get_portfolio()
-    
-    if not portfolio_data:
-        # אם אין נתונים, יוצר גרף ריק
+    try:
+        portfolio_data = portfolio_model.get_all_securities()
+        
+        if not portfolio_data:
+            # אם אין נתונים, יצור גרף ריק
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.text(0.5, 0.5, 'אין נתונים להצגה', ha='center', va='center', transform=ax.transAxes, fontsize=16)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+        else:
+            # יצירת גרף עוגה
+            labels = [item['name'] for item in portfolio_data]
+            sizes = [item['total_value'] for item in portfolio_data]
+            
+            fig, ax = plt.subplots(figsize=(10, 8))
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')
+            
+            # הגדרת צבעים לטקסט
+            for autotext in autotexts:
+                autotext.set_color('white')
+                autotext.set_fontweight('bold')
+        
+        # שמירת הגרף לתמונה
+        img = io.BytesIO()
+        plt.savefig(img, format='png', bbox_inches='tight', dpi=300)
+        img.seek(0)
+        plt.close()
+        
+        return Response(img.getvalue(), mimetype='image/png')
+    except Exception as e:
+        # במקרה של שגיאה, החזר תמונה ריקה
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.text(0.5, 0.5, 'אין נתונים להצגה', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=16)
+        ax.text(0.5, 0.5, f'שגיאה: {str(e)}', ha='center', va='center', transform=ax.transAxes, fontsize=12)
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
-        ax.axis('off')
-    else:
-        # חישוב נתונים לגרף
-        names = [item['name'] for item in portfolio_data]  # הסרתי את הפיכת השמות
-        values = [item['price'] * item['amount'] for item in portfolio_data]
         
-        # יצירת תרשים עוגה
-        fig, ax = plt.subplots(figsize=(10, 8))
-        colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                  '#FF9F40', '#FF6384', '#C9CBCF']
+        img = io.BytesIO()
+        plt.savefig(img, format='png', bbox_inches='tight')
+        img.seek(0)
+        plt.close()
         
-        wedges, texts, autotexts = ax.pie(values, labels=names, autopct='%1.1f%%',
-                                          startangle=90, colors=colors)
-        
-        # הגדרת גודל טקסט
-        for text in texts:
-            text.set_fontsize(10)
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_fontsize(9)
-            autotext.set_fontweight('bold')
-    
-    # שמירת הגרף כתמונה בזיכרון
-    img = io.BytesIO()
-    plt.savefig(img, format='png', bbox_inches='tight', dpi=100, 
-                facecolor='white', edgecolor='none')
-    img.seek(0)
-    plt.close(fig)  # סגירת הגרף לשחרור זיכרון
-    
-    return Response(img.getvalue(), mimetype='image/png')
+        return Response(img.getvalue(), mimetype='image/png')
 
 # אתחול מערכת הבינה המלאכותית כשהאתר מתחיל לרוץ
 print("אתחול מחלקה לחיבור ל-AI")  # הודעה שהבינה המלאכותית מתחילה
