@@ -1071,6 +1071,31 @@ def health_check():
             'timestamp': time.time()
         }), 500
 
+@app.route('/debug')
+def debug_info():
+    """נתיב לבדיקת מידע על המערכת"""
+    try:
+        info = {
+            'database_url': os.environ.get('DATABASE_URL', 'לא מוגדר'),
+            'port': os.environ.get('PORT', 'לא מוגדר'),
+            'ollama_url': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
+            'use_postgres': portfolio_model.use_postgres,
+            'db_url': portfolio_model.db_url
+        }
+        
+        # בדיקת חיבור למסד
+        try:
+            securities = portfolio_model.get_all_securities()
+            info['database_connection'] = 'עובד'
+            info['securities_count'] = len(securities)
+        except Exception as e:
+            info['database_connection'] = f'שגיאה: {str(e)}'
+            info['securities_count'] = 0
+            
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 # מפעילים את האתר
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")

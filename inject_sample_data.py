@@ -16,6 +16,28 @@ sample_securities = [
     ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה")
 ]
 
+def inject_sample_data():
+    """פונקציה להזרקת נתוני דוגמה - עובדת עם SQLAlchemy"""
+    try:
+        from dbmodel import PortfolioModel
+        model = PortfolioModel()
+        
+        # בודק אם יש כבר נתונים
+        securities = model.get_all_securities()
+        if securities:
+            print(f"כבר יש {len(securities)} ניירות ערך במסד. לא מוזרקים נתונים כפולים.")
+            return
+        
+        # מזריק נתונים
+        for name, amount, price, industry, variance, security_type in sample_securities:
+            model.add_security(name, amount, price, industry, variance, security_type)
+            print(f"נוסף: {name}")
+        
+        print("נתוני דוגמה הוזרקו בהצלחה!")
+        
+    except Exception as e:
+        print(f"שגיאה בהזרקת נתונים: {e}")
+
 # מקבל את כתובת המסד מהסביבה או מהמשתמש
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
@@ -63,4 +85,8 @@ try:
     cur.close()
     conn.close()
 except Exception as e:
-    print(f"שגיאה: {e}") 
+    print(f"שגיאה: {e}")
+
+if __name__ == "__main__":
+    # אם מריצים את הסקריפט ישירות
+    inject_sample_data() 
