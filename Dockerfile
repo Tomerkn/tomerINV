@@ -18,9 +18,11 @@ COPY . .
 
 # מגדיר משתנה סביבה
 ENV PYTHONUNBUFFERED=1
+ENV FLASK_ENV=production
 
 # פותח פורט 4000
 EXPOSE 4000
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
-CMD ["gunicorn", "--bind", "0.0.0.0:4000", "app:app"] 
+# עם timeout של 30 שניות ו-4 workers
+CMD ["gunicorn", "--bind", "0.0.0.0:4000", "--timeout", "30", "--workers", "4", "--preload", "app:app"] 
