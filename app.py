@@ -162,6 +162,37 @@ def logout():  # פונקציה שמטפלת ביציאה מהמערכת
     logout_user()  # מנתק את המשתמש מהמערכת
     return redirect(url_for('login'))  # מפנה אותו חזרה לדף הכניסה
 
+@app.route('/clear-session')  # נתיב לניקוי session
+def clear_session():
+    """מנקה את ה-session ומפנה להתחברות"""
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/init-db')  # נתיב לאתחול מסד הנתונים
+def init_database():
+    """מאתחל את מסד הנתונים עם נתונים לדוגמה"""
+    try:
+        # יוצר את הטבלאות
+        portfolio_model.create_tables()
+        
+        # מוסיף נתונים לדוגמה
+        sample_securities = [
+            ('Apple', 10, 150.0, 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+            ('Microsoft', 5, 300.0, 'טכנולוגיה', 'נמוך', 'מניה רגילה'),
+            ('Tesla', 8, 200.0, 'תחבורה', 'גבוה', 'מניה רגילה'),
+            ('אגח ממשלתי', 1000, 1.0, 'פיננסים', 'נמוך', 'אגח ממשלתית'),
+            ('Google', 3, 2500.0, 'טכנולוגיה', 'גבוה', 'מניה רגילה')
+        ]
+        
+        for name, amount, price, industry, variance, security_type in sample_securities:
+            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
+        
+        flash('מסד הנתונים אותחל בהצלחה עם נתונים לדוגמה!', 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        flash(f'שגיאה באתחול מסד הנתונים: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
 @app.route('/')  # נתיב לדף הבית הראשי של האתר
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def index():  # פונקציה שמציגה את דף הבית

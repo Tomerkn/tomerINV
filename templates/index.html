@@ -53,12 +53,18 @@
                     <a href="{{ url_for('add_security') }}" class="btn btn-primary">
                         <i class="bi bi-plus-circle"></i> הוסף נייר ערך חדש
                     </a>
+                    <a href="{{ url_for('init_database') }}" class="btn btn-success">
+                        <i class="bi bi-database-add"></i> אתחל מסד נתונים עם נתונים לדוגמה
+                    </a>
                     {% endif %}
                     <a href="{{ url_for('portfolio') }}" class="btn btn-outline-primary">
                         <i class="bi bi-briefcase"></i> צפה בתיק המלא
                     </a>
                     <a href="{{ url_for('graph') }}" class="btn btn-outline-primary">
                         <i class="bi bi-graph-up"></i> צפה בגרפים
+                    </a>
+                    <a href="{{ url_for('clear_session') }}" class="btn btn-outline-warning">
+                        <i class="bi bi-box-arrow-right"></i> התנתק וחזור להתחברות
                     </a>
                     {% if not current_user.is_admin() %}
                     <div class="alert alert-info mt-2">
