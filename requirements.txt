@@ -16,3 +16,4 @@ beautifulsoup4==4.12.2
 lxml==4.9.3
 html5lib==1.1
 multitasking==0.0.11
+ollama==0.1.7
