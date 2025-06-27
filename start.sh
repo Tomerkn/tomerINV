@@ -44,6 +44,6 @@ else:
     print(f'מסד הנתונים מכיל {len(securities)} ניירות ערך')
 "
 
-# הפעלת האפליקציה
-echo "=== הפעלת האפליקציה על פורט $PORT ==="
+# הפעלת האפליקציה המלאה
+echo "=== הפעלת האפליקציה המלאה על פורט $PORT ==="
 exec gunicorn --bind 0.0.0.0:$PORT --timeout 30 --workers 4 --preload --access-logfile - --error-logfile - app:app 
