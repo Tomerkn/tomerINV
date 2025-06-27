@@ -28,6 +28,8 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'  # מפתח חשאי לאבט�
 login_manager = LoginManager()  # דבר שמנהל כניסה למערכת
 login_manager.init_app(app)  # מחברים אותו לאתר
 login_manager.login_view = 'login'  # איפה לשלוח אנשים שלא התחברו
+login_manager.login_message = 'אנא התחבר כדי לגשת לדף זה'  # הודעה בעברית
+login_manager.login_message_category = 'warning'  # סוג ההודעה
 
 # קבוע המרה מדולר לשקל
 USD_TO_ILS_RATE = 3.5
