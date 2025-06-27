@@ -1119,6 +1119,22 @@ def health_check():
     except Exception as e:
         return f"שגיאה: {str(e)}", 500
 
+@app.route('/api/status')
+def api_status():
+    """נתיב API שמחזיר JSON עם סטטוס האפליקציה"""
+    try:
+        import os
+        port = os.environ.get('PORT', '8080')
+        return jsonify({
+            'message': 'האפליקציה עובדת!',
+            'port': port,
+            'status': 'success',
+            'app_type': 'full_app',
+            'version': '1.0.0'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/debug')
 def debug_info():
     """נתיב לבדיקת מידע על המערכת"""
