@@ -1,111 +1,193 @@
-import sqlite3  # ייבוא ספרייה לעבודה עם מסד נתונים של SQLite
-from dbmodel import PortfolioModel  # ייבוא מחלקת ניהול מסד הנתונים שיצרנו
-from ollamamodel import AI_Agent  # ייבוא מחלקת הבינה המלאכותית לייעוץ
-import broker  # ייבוא מודול לקבלת מחירי מניות מהאינטרנט
+# זה הקובץ שמנהל את כל הלוגיקה של התיק – קנייה, מכירה, חישוב סיכונים, ייעוץ מהבינה המלאכותית
+# פה אני מחליט מה לקנות, מה למכור, איך לחשב סיכון, ואיך לקבל ייעוץ חכם
 
-class PortfolioController:  # מחלקה ראשית שמנהלת את כל פעולות תיק ההשקעות
-    def __init__(self, model):  # פונקציה שמתחילה את הקונטרולר
-        self.model = model  # שומר את מסד הנתונים למשתנה פנימי של המחלקה
-        self.ollama_model = AI_Agent()  # יוצר מופע של הבינה המלאכותית לייעוץ
+from ollamamodel import AI_Agent  # מביא את המחלקה שמדברת עם הבינה המלאכותית
+import random  # כלי ליצירת מספרים אקראיים (למחירים מדומים)
 
-    def buy_security(self, security, industry=None, variance=None, security_type=None):  # פונקציה לרכישת נייר ערך חדש לתיק
-        """רכישת נייר ערך והוספתו למסד הנתונים"""
-        try:  # מנסה לבצע את הפעולה
-            # קבלת המחיר הנוכחי של המניה מהאינטרנט
-            price = broker.Broker.update_price(security.name)
-            # הוספת המניה למסד הנתונים או עדכון הכמות אם היא כבר קיימת
-            self.model.execute_query(
-                "INSERT INTO investments (name, price, amount, industry, variance, security_type) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(name) "
-                "DO UPDATE SET amount = amount + excluded.amount, price = excluded.price, industry = excluded.industry, variance = excluded.variance, security_type = excluded.security_type",
-                (security.name, price, security.amount, industry, variance, security_type)
+
+class PortfolioController:  # פה אני יוצר מנהל תיק השקעות – כמו יועץ השקעות חכם
+    """פה אני מנהל את כל התיק – קונה, מוכר, מחשב סיכונים, מקבל ייעוץ מהבינה המלאכותית"""
+    
+    def __init__(self, portfolio_model):
+        """פה אני מתחיל את המנהל עם מסד הנתונים והבינה המלאכותית"""
+        self.portfolio_model = portfolio_model  # מסד הנתונים של התיק
+        self.ai_agent = AI_Agent()  # הבינה המלאכותית שנותנת ייעוץ
+        print("אתחול מנהל תיק השקעות")
+    
+    def buy_security(self, security, industry, variance, security_type):
+        """פה אני קונה מניה/אג"ח חדשה לתיק – כמו ללכת לסופר ולקנות מוצר"""
+        try:
+            # פה אני שומר את הנייר ערך במסד הנתונים
+            self.portfolio_model.add_security(
+                security.name,  # שם המניה/אג"ח
+                security.amount,  # כמה לקנות
+                security.price,  # במחיר כמה
+                industry,  # באיזה תחום (טכנולוגיה, בריאות וכו')
+                variance,  # כמה המחיר משתנה (נמוך/גבוה)
+                security_type  # איזה סוג (מניה/אג"ח)
             )
-            return f"נייר ערך {security.name} נוסף בהצלחה!"  # מחזיר הודעת הצלחה
-        except sqlite3.IntegrityError:  # אם יש שגיאה במסד הנתונים
-            return "נייר הערך כבר קיים בתיק ההשקעות."  # מחזיר הודעת שגיאה
-
-    def remove_security(self, name):  # פונקציה למחיקה מלאה של נייר ערך מהתיק
-        """מחיקה מלאה של נייר ערך מהתיק"""
-        # מוחק את נייר הערך לגמרי מהמסד נתונים
-        self.model.execute_query("DELETE FROM investments WHERE name = ?", (name,))
-        return f"נייר הערך {name} נמחק בהצלחה מהתיק"
-
-    def get_portfolio(self):  # פונקציה לקבלת כל ניירות הערך בתיק
-        """שליפת כל ניירות הערך בתיק ההשקעות"""
-        # שולף את כל המידע הנחוץ לחישוב סיכון
-        rows = self.model.execute_query("SELECT name, price, amount, industry, variance, security_type FROM investments")
-        if rows:  # אם יש תוצאות
+            return f"קניתי {security.amount} יחידות של {security.name} במחיר {security.price}"
+        except Exception as e:
+            return f"שגיאה בקנייה: {str(e)}"
+    
+    def sell_security(self, security_name, amount):
+        """פה אני מוכר מניה/אג"ח מהתיק – כמו למכור משהו שקניתי קודם"""
+        try:
+            # פה אני מוחק את הנייר ערך מהמסד
+            self.portfolio_model.remove_security(security_name)
+            return f"מכרתי {amount} יחידות של {security_name}"
+        except Exception as e:
+            return f"שגיאה במכירה: {str(e)}"
+    
+    def get_portfolio(self):
+        """פה אני מביא את כל התיק – רשימה של כל מה שיש לי"""
+        print("=== התחלת get_portfolio ===")
+        try:
+            print("קורא get_all_securities מהמודל")
+            securities = self.portfolio_model.get_all_securities()
+            print(f"קיבלתי {len(securities)} ניירות ערך מהמודל")
             portfolio = []
-            for row in rows:
-                # חישוב רמת סיכון לכל השקעה
-                risk_level = RiskManager.calculate_risk(
-                    row[5] if row[5] else "מניה רגילה",  # security_type
-                    row[3] if row[3] else "צריכה פרטית",  # industry
-                    row[4] if row[4] else "נמוך"  # variance
-                )
-                
+            for sec in securities:
                 portfolio.append({
-                    "name": row[0], 
-                    "price": row[1], 
-                    "amount": row[2],
-                    "industry": row[3] if row[3] else "לא מוגדר",
-                    "variance": row[4] if row[4] else "לא מוגדר", 
-                    "security_type": row[5] if row[5] else "לא מוגדר",
-                    "risk_level": risk_level
+                    'name': sec['name'],  # שם המניה/אג"ח
+                    'amount': sec['amount'],  # כמה יש לי
+                    'price': sec['price'],  # במחיר כמה
+                    'industry': sec['industry'],  # באיזה תחום
+                    'variance': sec['variance'],  # כמה משתנה
+                    'security_type': sec['security_type']  # איזה סוג
                 })
+            print(f"החזרתי {len(portfolio)} ניירות ערך")
             return portfolio
-        return []  # מחזיר רשימה רקה אם אין השקעות
-
-    def get_advice(self, portfolio_data=None, risk_profile="בינוני"):
-        """קבלת ייעוץ מסוכן AI"""
-        # אם לא קיבלנו נתוני תיק, נבנה אותם מהתיק הנוכחי
-        if portfolio_data is None:
-            portfolio = self.get_portfolio()
-            total_value = sum(item['price'] * item['amount'] for item in portfolio)
+        except Exception as e:
+            print(f"שגיאה בקבלת התיק: {str(e)}")
+            return []
+    
+    def get_advice(self, portfolio, risk_profile):
+        """פה אני מקבל ייעוץ מהבינה המלאכותית – כמו לדבר עם יועץ השקעות חכם"""
+        print("=== התחלת get_advice ===")
+        try:
+            # פה אני מכין מידע על התיק בשביל הבינה המלאכותית
+            portfolio_info = []
+            for item in portfolio:
+                portfolio_info.append({
+                    'name': item['name'],
+                    'amount': item['amount'],
+                    'price': item['price'],
+                    'industry': item['industry'],
+                    'security_type': item['security_type']
+                })
             
-            portfolio_data = {
-                'assets': [
-                    {
-                        'name': item['name'],
-                        'value': item['price'] * item['amount'],
-                        'risk_level': item['risk_level']
-                    }
-                    for item in portfolio
-                ],
-                'total_value': total_value
-            }
+            print(f"שולח {len(portfolio_info)} ניירות ערך לבינה המלאכותית")
+            # פה אני שולח את המידע לבינה המלאכותית ומקבל ייעוץ
+            advice = self.ai_agent.get_investment_advice(portfolio_info, risk_profile)
+            print("קיבלתי ייעוץ מהבינה המלאכותית")
+            return advice
+        except Exception as e:
+            print(f"שגיאה בקבלת ייעוץ: {str(e)}")
+            return f"לא הצלחתי לקבל ייעוץ: {str(e)}"
+    
+    def calculate_total_value(self):
+        """פה אני מחשב כמה שווה כל התיק שלי ביחד"""
+        portfolio = self.get_portfolio()
+        total = 0
+        for item in portfolio:
+            total += item['price'] * item['amount']  # מחיר כפול כמות
+        return total
+    
+    def update_prices(self):
+        """פה אני מעדכן את כל המחירים בתיק – כמו לבדוק מחירים חדשים"""
+        try:
+            portfolio = self.get_portfolio()
+            for item in portfolio:
+                # פה אני מביא מחיר חדש מהאינטרנט
+                new_price = self._get_current_price(item['name'])
+                if new_price:
+                    self.portfolio_model.update_price(item['name'], new_price)
+            return "כל המחירים עודכנו"
+        except Exception as e:
+            return f"שגיאה בעדכון מחירים: {str(e)}"
+    
+    def _get_current_price(self, symbol):
+        """פה אני מביא מחיר נוכחי מהאינטרנט (או מדומה)"""
+        # פה אני יכול להביא מחיר אמיתי מהאינטרנט
+        # כרגע אני משתמש במחיר מדומה
+        return random.uniform(10, 100)  # מחיר בין 10 ל-100
+
+
+class RiskManager:  # פה אני יוצר מנהל סיכונים – כמו בודק בטיחות
+    """פה אני מחשב סיכונים של ניירות ערך – כמה מסוכן זה להשקיע בזה"""
+    
+    @staticmethod
+    def calculate_risk(security_type, industry, variance):
+        """פה אני מחשב כמה מסוכן נייר ערך מסוים – ציון בין 1 ל-10"""
+        risk_score = 0
         
-        # שולח את נתוני התיק לבינה המלאכותית ומחזיר את התשובה
-        return self.ollama_model.get_advice(portfolio_data, risk_profile)
-
-class RiskManager:  # מחלקה לחישוב סיכונים של השקעות
-    # מילון שמגדיר רמת סיכון לכל ענף - ככל שהמספר גבוה יותר, הסיכון גבוה יותר
-    RISK_SCALE = {
-        "טכנולוגיה": 6,      # ענף עם סיכון גבוה - מחירים משתנים הרבה
-        "תחבורה": 5,         # ענף עם סיכון בינוני-גבוה
-        "אנרגיה": 4,         # ענף עם סיכון בינוני
-        "בריאות": 4,         # ענף עם סיכון בינוני
-        "תעשייה": 3,         # ענף עם סיכון בינוני-נמוך
-        "פיננסים": 3,        # ענף עם סיכון בינוני-נמוך
-        "נדלן": 2,           # ענף עם סיכון נמוך
-        "צריכה פרטית": 1     # ענף עם סיכון הכי נמוך
-    }
-
-    # מילון שמגדיר רמת סיכון לפי שונות המחירים
-    VARIATION_SCALE = {
-        "נמוך": 1,   # שונות נמוכה - מחירים יציבים
-        "גבוה": 2    # שונות גבוהה - מחירים משתנים הרבה
-    }
-
-    @staticmethod  # פונקציה סטטית שלא צריכה מופע של המחלקה
-    def calculate_risk(security_type, sector, variation):  # פונקציה לחישוב סיכון כולל
-        # מקבל את רמת הסיכון הבסיסית של הענף
-        base_risk = RiskManager.RISK_SCALE.get(sector, 1)
-        # מקבל את רמת השונות
-        variation_risk = RiskManager.VARIATION_SCALE.get(variation, 1)
-
-        # חישוב סיכון לפי סוג נייר הערך
-        if security_type == "אגח ממשלתית":
-            return base_risk * variation_risk * 0.5  # אג"ח ממשלתי - סיכון נמוך יותר
-        elif security_type == "אגח קונצרנית":
-            return base_risk * variation_risk * 0.1  # אג"ח קונצרני - סיכון נמוך מאוד
-        return base_risk * variation_risk  # מניה רגילה - סיכון מלא 
+        # פה אני בודק איזה סוג נייר ערך זה
+        if security_type == 'מניה רגילה':
+            risk_score += 3  # מניות יותר מסוכנות
+        elif security_type == 'אגח ממשלתית':
+            risk_score += 1  # אג"ח ממשלתיות פחות מסוכנות
+        elif security_type == 'אגח קונצרנית':
+            risk_score += 2  # אג"ח של חברות בינוניות
+        
+        # פה אני בודק באיזה תחום זה
+        industry_risks = {
+            'טכנולוגיה': 3,  # טכנולוגיה מאוד מסוכנת
+            'תחבורה': 2,  # תחבורה בינונית
+            'אנרגיה': 2,  # אנרגיה בינונית
+            'בריאות': 2,  # בריאות בינונית
+            'תעשייה': 1,  # תעשייה פחות מסוכנת
+            'פיננסים': 2,  # פיננסים בינוניים
+            'נדלן': 2,  # נדלן בינוני
+            'צריכה פרטית': 1  # צריכה פחות מסוכנת
+        }
+        risk_score += industry_risks.get(industry, 2)
+        
+        # פה אני בודק כמה המחיר משתנה
+        if variance == 'גבוה':
+            risk_score += 2  # אם המחיר משתנה הרבה – יותר מסוכן
+        elif variance == 'נמוך':
+            risk_score += 0  # אם המחיר יציב – פחות מסוכן
+        
+        # פה אני מחזיר ציון בין 1 ל-10
+        return min(max(risk_score, 1), 10)
+    
+    @staticmethod
+    def get_risk_description(risk_score):
+        """פה אני מחזיר הסבר על רמת הסיכון במילים פשוטות"""
+        if risk_score <= 2:
+            return "סיכון נמוך מאוד – כמו לשים כסף בבנק"
+        elif risk_score <= 4:
+            return "סיכון נמוך – כמו לקנות דירה"
+        elif risk_score <= 6:
+            return "סיכון בינוני – כמו לפתוח עסק קטן"
+        elif risk_score <= 8:
+            return "סיכון גבוה – כמו לקנות מניות טכנולוגיה"
+        else:
+            return "סיכון גבוה מאוד – כמו לקנות מניות של חברות קטנות"
+    
+    @staticmethod
+    def calculate_portfolio_risk(portfolio):
+        """פה אני מחשב את הסיכון הכללי של כל התיק"""
+        if not portfolio:
+            return 0
+        
+        total_risk = 0
+        total_value = 0
+        
+        for item in portfolio:
+            # פה אני מחשב סיכון של כל נייר ערך
+            risk = RiskManager.calculate_risk(
+                item['security_type'],
+                item['industry'],
+                item['variance']
+            )
+            value = item['price'] * item['amount']
+            total_risk += risk * value  # סיכון כפול ערך
+            total_value += value
+        
+        if total_value == 0:
+            return 0
+        
+        # פה אני מחזיר ממוצע משוקלל של הסיכון
+        return total_risk / total_value 

@@ -1,130 +1,135 @@
-import os
-import requests
+# זה הקובץ שמדבר עם הבינה המלאכותית – כמו יועץ השקעות חכם שמבין הכל
+# פה אני שולח מידע על התיק ומקבל ייעוץ חכם בחזרה
+
+import ollama  # פה אני מביא כלי שמאפשר לי לדבר עם שירות Ollama
+import os  # כלי לעבודה עם קבצים וסביבה
 
 
-class AI_Agent:
-    """
-    מחלקה לחיבור לבינה מלאכותית - תומכת ב-Ollama מקומי או בענן
-    """
+class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – כמו יועץ השקעות חכם
+    """פה אני מדבר עם הבינה המלאכותית ומקבל ייעוץ השקעות חכם"""
     
     def __init__(self):
-        """אתחול מחלקה לחיבור ל-AI"""
+        """פה אני מתחיל את הסוכן ומתחבר לבינה המלאכותית"""
+        # כתובת של Ollama
+        self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        # איזה מודל להשתמש בו (llama2 זה מודל טוב)
+        self.model_name = 'llama2'
         print("אתחול מחלקה לחיבור ל-AI")
-        
-        # קביעת כתובת ה-Ollama - מקומי או דרך ngrok
-        self.ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
-        self.model_name = os.getenv('OLLAMA_MODEL', 'llama3')
-        
-        # בדיקה אם Ollama זמין
-        self.is_available = self._check_ollama_availability()
-        
-    def _check_ollama_availability(self) -> bool:
-        """בדיקה אם Ollama זמין"""
-        try:
-            url = f"{self.ollama_url}/api/tags"
-            response = requests.get(url, timeout=5)
-            return response.status_code == 200
-        except Exception:
-            return False
     
-    def get_advice(self, portfolio_data: dict, risk_profile: str) -> str:
-        """
-        קבלת ייעוץ השקעות מבינה מלאכותית
-        
-        Args:
-            portfolio_data: נתוני התיק
-            risk_profile: פרופיל הסיכון
-            
-        Returns:
-            ייעוץ השקעות בעברית
-        """
-        
-        if not self.is_available:
-            return self._get_fallback_advice(portfolio_data, risk_profile)
-        
+    def get_investment_advice(self, portfolio_data, risk_profile):
+        """פה אני מקבל ייעוץ השקעות מהבינה המלאכותית – כמו לדבר עם מומחה"""
         try:
-            # בניית הודעה לבינה המלאכותית
-            prompt = self._build_prompt(portfolio_data, risk_profile)
+            # פה אני מכין הודעה מפורטת לבינה המלאכותית
+            prompt = self._create_investment_prompt(portfolio_data, risk_profile)
             
-            # שליחה ל-Ollama
-            response = requests.post(
-                f"{self.ollama_url}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.7,
-                        "max_tokens": 500
-                    }
-                },
-                timeout=30
-            )
+            # פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה
+            response = self._send_to_ollama(prompt)
             
-            if response.status_code == 200:
-                result = response.json()
-                fallback = self._get_fallback_advice(portfolio_data, risk_profile)
-                return result.get('response', fallback)
-            else:
-                return self._get_fallback_advice(portfolio_data, risk_profile)
-                
+            # פה אני מחזיר את הייעוץ בעברית פשוטה
+            return self._format_advice(response)
+            
         except Exception as e:
-            print(f"שגיאה בחיבור ל-Ollama: {e}")
-            return self._get_fallback_advice(portfolio_data, risk_profile)
+            # אם משהו לא עובד, אני מחזיר ייעוץ בסיסי
+            return f"לא הצלחתי לקבל ייעוץ מהבינה המלאכותית: {str(e)}. כדאי לבדוק את החיבור."
     
-    def _build_prompt(self, portfolio_data: dict, risk_profile: str) -> str:
-        """בניית הודעה לבינה המלאכותית"""
+    def _create_investment_prompt(self, portfolio_data, risk_profile):
+        """פה אני יוצר הודעה מפורטת לבינה המלאכותית עם כל המידע על התיק"""
         
-        total_value = sum(asset['value'] for asset in portfolio_data.get('assets', []))
-        
+        # פה אני מתחיל את ההודעה
         prompt = f"""
-אתה יועץ השקעות מקצועי. תן ייעוץ קצר ומעשי בעברית.
+אתה יועץ השקעות מקצועי. אני רוצה ייעוץ על התיק שלי.
 
-נתוני התיק:
-- ערך כולל: ₪{total_value:,.0f}
-- פרופיל סיכון: {risk_profile}
+פרופיל הסיכון שלי: {risk_profile}
 
-נכסים בתיק:
+התיק הנוכחי שלי:
 """
         
-        for asset in portfolio_data.get('assets', []):
-            percentage = (asset['value'] / total_value * 100) if total_value > 0 else 0
-            value_str = f"₪{asset['value']:,.0f}"
-            pct_str = f"({percentage:.1f}%)"
-            prompt += f"- {asset['name']}: {value_str} {pct_str}\n"
+        # פה אני מוסיף כל מניה/אג"ח שיש לי
+        total_value = 0
+        for item in portfolio_data:
+            value = item['price'] * item['amount']
+            total_value += value
+            prompt += f"""
+- {item['name']}: {item['amount']} יחידות במחיר {item['price']} (ערך: {value:.2f})
+  תחום: {item['industry']}
+  סוג: {item['security_type']}
+"""
         
-        prompt += """
+        prompt += f"""
+ערך כולל של התיק: {total_value:.2f}
 
-תן ייעוץ קצר (2-3 משפטים) בעברית על:
-1. האם התיק מאוזן?
-2. המלצות לשיפור
-3. נקודות לתשומת לב
+אנא תן לי ייעוץ מפורט בעברית פשוטה על:
+1. האם התיק שלי מאוזן?
+2. איזה שינויים כדאי לי לעשות?
+3. איזה סיכונים יש לי?
+4. המלצות ספציפיות לשיפור התיק
 
-התשובה צריכה להיות בעברית, מקצועית אבל פשוטה להבנה.
+הסבר הכל בשפה פשוטה ועממית, כאילו אתה מסביר לחבר.
 """
         
         return prompt
     
-    def _get_fallback_advice(self, portfolio_data: dict, risk_profile: str) -> str:
-        """ייעוץ גיבוי כשאין חיבור ל-Ollama"""
-        
-        total_value = sum(asset['value'] for asset in portfolio_data.get('assets', []))
-        num_assets = len(portfolio_data.get('assets', []))
-        
-        advice = f"ייעוץ בסיסי לתיק שלך (ערך: ₪{total_value:,.0f}):\n\n"
-        
-        if num_assets < 3:
-            advice += "• כדאי לגוון יותר את התיק - הוסף עוד נכסים\n"
-        elif num_assets > 10:
-            advice += "• התיק מגוון מדי - שקול לאחד נכסים דומים\n"
-        else:
-            advice += "• רמת הגיוון בתיק נראית טובה\n"
-        
-        if risk_profile == "נמוך":
-            advice += "• התיק מתאים לפרופיל סיכון נמוך\n"
-        elif risk_profile == "גבוה":
-            advice += "• התיק מתאים לפרופיל סיכון גבוה\n"
-        
-        advice += "\n💡 טיפ: בדוק את התיק באופן קבוע ועדכן לפי השינויים בשוק"
-        
-        return advice 
+    def _send_to_ollama(self, prompt):
+        """פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה"""
+        try:
+            # פה אני מתחבר ל-Ollama ושולח את ההודעה
+            client = ollama.Client(host=self.ollama_url)
+            response = client.chat(
+                model=self.model_name,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': prompt
+                    }
+                ]
+            )
+            
+            # פה אני מחזיר את התשובה
+            return response['message']['content']
+            
+        except Exception as e:
+            # אם יש בעיה עם החיבור, אני מחזיר הודעת שגיאה
+            raise Exception(f"בעיה בחיבור לבינה המלאכותית: {str(e)}")
+    
+    def _format_advice(self, raw_advice):
+        """פה אני מעצב את הייעוץ בצורה יפה וקריאה"""
+        try:
+            # פה אני מנסה לעצב את התשובה בצורה יפה
+            if len(raw_advice) > 1000:
+                # אם התשובה ארוכה מדי, אני מקצר אותה
+                return raw_advice[:1000] + "...\n\n(התשובה קוצרה בגלל אורך)"
+            else:
+                return raw_advice
+        except Exception:
+            # אם יש בעיה בעיצוב, אני מחזיר את התשובה כמו שהיא
+            return raw_advice
+    
+    def test_connection(self):
+        """פה אני בודק אם החיבור לבינה המלאכותית עובד"""
+        try:
+            client = ollama.Client(host=self.ollama_url)
+            # פה אני שולח הודעה פשוטה לבדיקה
+            client.chat(
+                model=self.model_name,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': 'תגיד לי שלום בעברית'
+                    }
+                ]
+            )
+            return "החיבור לבינה המלאכותית עובד!"
+        except Exception as e:
+            return f"בעיה בחיבור: {str(e)}"
+    
+    def get_simple_advice(self):
+        """פה אני מקבל ייעוץ פשוט בלי לנתח תיק ספציפי"""
+        try:
+            prompt = """
+אתה יועץ השקעות. תן לי 3 טיפים פשוטים להשקעות בטוחות בעברית.
+הסבר הכל בשפה פשוטה ועממית.
+"""
+            response = self._send_to_ollama(prompt)
+            return self._format_advice(response)
+        except Exception:
+            return "לא הצלחתי לקבל ייעוץ פשוט מהבינה המלאכותית." 

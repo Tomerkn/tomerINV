@@ -21,6 +21,8 @@ from securities import Stock, Bond
 from ollamamodel import AI_Agent
 import broker
 
+print("=== התחלת טעינת האפליקציה ===")
+
 plt.rcParams['font.family'] = ['Arial']  # הגדרת פונט שתומך בעברית
 
 # הוספת לוגים מפורטים
@@ -35,6 +37,7 @@ login_manager.init_app(app)  # מחברים אותו לאתר
 login_manager.login_view = 'login'  # איפה לשלוח אנשים שלא התחברו
 login_manager.login_message = 'אנא התחבר כדי לגשת לדף זה'  # הודעה בעברית
 login_manager.login_message_category = 'warning'  # סוג ההודעה
+print("=== Flask app נוצר בהצלחה ===")
 
 # קבוע המרה מדולר לשקל
 USD_TO_ILS_RATE = 3.5
@@ -85,8 +88,12 @@ def admin_required(f):  # מקבלת פונקציה ועוטפת אותה בבד
     return decorated_function  # מחזיר את הפונקציה החדשה
 
 # יצירת מופעים של המחלקות שנצטרך לאורך כל האפליקציה
+print("=== יצירת מופעי המחלקות ===")
 portfolio_model = PortfolioModel()  # יוצר את מסד הנתונים
+print("PortfolioModel נוצר בהצלחה")
 portfolio_controller = PortfolioController(portfolio_model)  # יוצר את הקונטרולר שמנהל הכל
+print("PortfolioController נוצר בהצלחה")
+print("=== סיום יצירת מופעי המחלקות ===")
 
 # הגדרת כל הטפסים שהמשתמשים יוכלו למלא באתר
 class LoginForm(FlaskForm):  # טופס כניסה למערכת
@@ -168,62 +175,55 @@ def clear_session():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/init-db')  # נתיב לאתחול מסד הנתונים
-def init_database():
-    """מאתחל את מסד הנתונים עם נתונים לדוגמה"""
-    try:
-        # יוצר את הטבלאות
-        portfolio_model.create_tables()
-        
-        # מוסיף נתונים לדוגמה
-        sample_securities = [
-            ('Apple', 10, 150.0, 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
-            ('Microsoft', 5, 300.0, 'טכנולוגיה', 'נמוך', 'מניה רגילה'),
-            ('Tesla', 8, 200.0, 'תחבורה', 'גבוה', 'מניה רגילה'),
-            ('אגח ממשלתי', 1000, 1.0, 'פיננסים', 'נמוך', 'אגח ממשלתית'),
-            ('Google', 3, 2500.0, 'טכנולוגיה', 'גבוה', 'מניה רגילה')
-        ]
-        
-        for name, amount, price, industry, variance, security_type in sample_securities:
-            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
-        
-        flash('מסד הנתונים אותחל בהצלחה עם נתונים לדוגמה!', 'success')
-        return redirect(url_for('index'))
-    except Exception as e:
-        flash(f'שגיאה באתחול מסד הנתונים: {str(e)}', 'error')
-        return redirect(url_for('index'))
-
 @app.route('/')  # נתיב לדף הבית הראשי של האתר
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def index():  # פונקציה שמציגה את דף הבית
     try:
-        # וודא שמסד הנתונים נוצר
-        portfolio_model.create_tables()
+        print("=== התחלת פונקציית index ===")
+        print(f"משתמש מחובר: {current_user.is_authenticated}")
+        if current_user.is_authenticated:
+            print(f"שם משתמש: {current_user.username}")
+            print(f"תפקיד: {current_user.role}")
         
+        # וודא שמסד הנתונים נוצר
+        print("יוצר טבלאות במסד הנתונים...")
+        portfolio_model.create_tables()
+        print("טבלאות נוצרו בהצלחה")
+        
+        print("מקבל נתוני תיק...")
         portfolio = portfolio_controller.get_portfolio()  # מקבל את כל ניירות הערך בתיק
+        print(f"מספר ניירות ערך בתיק: {len(portfolio)}")
+        
         # מחשב את הערך הכולל של התיק על ידי כפל מחיר בכמות לכל נייר ערך
         total_value = sum(item['price'] * item['amount'] for item in portfolio)
         asset_count = len(portfolio)  # סופר כמה ניירות ערך יש בתיק
+        print(f"ערך כולל: {total_value}, מספר נכסים: {asset_count}")
         
         # מעביר את הנתונים לתבנית HTML ומציג את הדף
+        print("מציג דף הבית...")
         return render_template('index.html',
                              total_assets=total_value,  # הערך הכולל של התיק
                              asset_count=asset_count,   # מספר ניירות הערך
                              portfolio=portfolio)       # רשימת כל ניירות הערך
     except Exception as e:
-        # לוג השגיאה לבדיקה
         print(f"שגיאה בדף הבית: {str(e)}")
-        flash('שגיאה בטעינת הנתונים. אנא נסה שוב.', 'warning')
-        return render_template('index.html',
-                             total_assets=0,
-                             asset_count=0,
-                             portfolio=[])
+        import traceback
+        traceback.print_exc()
+        flash('שגיאה פנימית בשרת. אנא נסה שוב מאוחר יותר.', 'danger')
+        return render_template('index.html', total_assets=0, asset_count=0, portfolio=[])
 
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def portfolio():  # פונקציה שמציגה את תיק ההשקעות המלא
-    portfolio_data = portfolio_controller.get_portfolio()  # מקבל את כל נתוני התיק מהקונטרולר
-    return render_template('portfolio.html', portfolio=portfolio_data)  # מציג את דף התיק עם הנתונים
+    print("=== התחלת פונקציית portfolio ===")
+    try:
+        portfolio_data = portfolio_controller.get_portfolio()  # מקבל את כל ניירות הערך
+        print(f"מספר ניירות ערך בתיק: {len(portfolio_data)}")
+        return render_template('portfolio.html', portfolio=portfolio_data)
+    except Exception as e:
+        print(f"שגיאה בדף התיק: {str(e)}")
+        flash('שגיאה בטעינת התיק', 'danger')
+        return render_template('portfolio.html', portfolio=[])
 
 @app.route('/portfolio/add', methods=['GET', 'POST'])  # נתיב להוספת נייר ערך חדש
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
@@ -388,6 +388,7 @@ def generate_pie_chart():
 # אתחול מערכת הבינה המלאכותית כשהאתר מתחיל לרוץ
 print("אתחול מחלקה לחיבור ל-AI")  # הודעה שהבינה המלאכותית מתחילה
 ai_agent = AI_Agent()  # יוצר את הבינה המלאכותית שתייעץ למשתמשים
+print("=== AI Agent נוצר בהצלחה ===")
 
 # טיפול שגיאות כללי
 @app.errorhandler(500)
@@ -408,8 +409,19 @@ def handle_exception(e):
     logger.error(f"פרטי השגיאה: {traceback.format_exc()}")
     return render_template('error.html', error="שגיאה לא צפויה"), 500
 
+@app.route('/test')
+def test():
+    """נתיב בדיקה פשוט"""
+    return "האפליקציה עובדת! 🎉"
+
+print("=== כל הנתיבים נרשמו בהצלחה ===")
+print("=== האפליקציה מוכנה להפעלה ===")
+
 # מפעילים את האתר
 if __name__ == '__main__':
+    print("=== התחלת הפעלת האפליקציה ===")
     # קביעת הפורט - Railway מספק משתנה סביבה PORT
     port = int(os.environ.get('PORT', 4000))
+    print(f"האפליקציה רצה על פורט: {port}")
+    print("=== האפליקציה מוכנה לשימוש ===")
     app.run(host='0.0.0.0', port=port, debug=False)
