@@ -1,3 +1,4 @@
+# קבצים שלא צריך להעתיק ל-Docker
 __pycache__/
 *.pyc
 *.pyo
@@ -21,7 +22,16 @@ coverage.xml
 .pytest_cache/
 .hypothesis/
 .DS_Store
-instance/
 *.db
+*.sqlite
+*.sqlite3
+.env
+.env.local
+.env.production
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 .gitignore
 render.yaml 

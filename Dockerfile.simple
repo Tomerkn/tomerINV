@@ -1,0 +1,16 @@
+# Dockerfile פשוט לבדיקה
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements_simple.txt .
+RUN pip install --no-cache-dir -r requirements_simple.txt
+
+COPY simple_app.py .
+
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_ENV=production
+
+EXPOSE 4000
+
+CMD ["gunicorn", "--bind", "0.0.0.0:4000", "--timeout", "30", "simple_app:app"] 

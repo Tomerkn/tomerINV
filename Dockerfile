@@ -16,13 +16,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # מעתיק את כל הקבצים של האפליקציה
 COPY . .
 
+# מגדיר הרשאות לסקריפט הפעלה
+RUN chmod +x start.sh
+
 # מגדיר משתנה סביבה
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
+ENV PYTHONPATH=/app
 
 # פותח פורט 4000
 EXPOSE 4000
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
-# עם timeout של 30 שניות ו-4 workers
-CMD ["gunicorn", "--bind", "0.0.0.0:4000", "--timeout", "30", "--workers", "4", "--preload", "app:app"] 
+CMD ["./start.sh"] 
