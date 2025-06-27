@@ -504,15 +504,14 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         print("=== התחלת get_connection ===")
         
         if self.use_postgres:
-            print(f"מתחבר ל-Postgres עם SQLAlchemy: {self.db_url}")
+            print(f"מתחבר ל-PostgreSQL: {self.db_url}")
             try:
-                import sqlalchemy
-                engine = sqlalchemy.create_engine(self.db_url)
-                connection = engine.raw_connection()
-                print("חיבור ל-Postgres הצליח")
+                import psycopg2
+                connection = psycopg2.connect(self.db_url)
+                print("חיבור ל-PostgreSQL הצליח")
                 return connection
             except Exception as e:
-                print(f"שגיאה בחיבור ל-Postgres: {e}")
+                print(f"שגיאה בחיבור ל-PostgreSQL: {e}")
                 raise
         else:
             print(f"מתחבר ל-SQLite: {self.db_url}")
@@ -533,7 +532,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             cursor = conn.cursor()
             
             if self.use_postgres:
-                print("יוצר טבלת משתמשים ב-Postgres")
+                print("יוצר טבלת משתמשים ב-PostgreSQL")
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS users (
                         id SERIAL PRIMARY KEY,
@@ -544,7 +543,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
-                print("יוצר טבלת השקעות ב-Postgres")
+                print("יוצר טבלת השקעות ב-PostgreSQL")
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS investments (
                         id SERIAL PRIMARY KEY,

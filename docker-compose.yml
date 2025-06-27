@@ -5,55 +5,57 @@
 version: '3.8'
 
 services:
-  # שירות האפליקציה הראשי
-  web:
+  # שירות 1: אפליקציית Flask
+  flask-app:
     build: .
+    container_name: inv_web01
     ports:
-      - "${PORT:-4000}:${PORT:-4000}"
+      - "8080:8080"
     environment:
-      - DATABASE_URL=${DATABASE_URL}  # חובה להגדיר בענן
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/investments
       - OLLAMA_URL=http://ollama:11434
-      - PORT=${PORT:-4000}
-      - FLASK_ENV=production
+      - PORT=8080
     depends_on:
+      - postgres
       - ollama
-    volumes:
-      - ./instance:/app/instance
+    networks:
+      - investment-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
 
-  # שירות Ollama עם מודל Llama3.1 8B
+  # שירות 2: מסד נתונים PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: inv_db_Postgres
+    environment:
+      - POSTGRES_DB=investments
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - investment-network
+    restart: unless-stopped
+
+  # שירות 3: שרת Ollama לבינה מלאכותית
   ollama:
     image: ollama/ollama:latest
+    container_name: ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      - OLLAMA_HOST=0.0.0.0
-    deploy:
-      resources:
-        limits:
-          memory: 6G  # מגביל ל-6GB למודל
-        reservations:
-          memory: 4G
+      - OLLAMA_MODELS=llama3.1:8b
+    networks:
+      - investment-network
     restart: unless-stopped
-    command: >
-      sh -c "
-        echo '=== התחלת Ollama ===' &&
-        ollama serve &
-        sleep 15 &&
-        echo '=== מוריד מודל llama3.1:8b ===' &&
-        ollama pull llama3.1:8b &&
-        echo '=== מודל llama3.1:8b מוכן! ===' &&
-        echo '=== Ollama פועל על http://localhost:11434 ===' &&
-        wait
-      "
 
 volumes:
-  ollama_data: 
+  postgres_data:
+  ollama_data:
+
+networks:
+  investment-network:
+    driver: bridge 

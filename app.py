@@ -1192,12 +1192,6 @@ def setup_database():
         conn.close()
         print("משתמשים נוספו בהצלחה")
         
-        # הוספת 20 ניירות ערך אמיתיים (10 מהעולם, 10 מהארץ)
-        print("מוסיף 20 ניירות ערך אמיתיים...")
-        
-        # כמות ברירת מחדל לכל נייר ערך
-        default_amount = 10
-        
         # בדיקה אם כבר יש ניירות ערך
         existing_securities = portfolio_model.get_all_securities()
         if len(existing_securities) > 0:
@@ -1221,17 +1215,11 @@ def setup_database():
             """
             return result
         
-        # ניקוי טבלת השקעות קיימת
-        conn = portfolio_model.get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("DELETE FROM investments")
-            conn.commit()
-            print("טבלת השקעות נוקתה")
-        except Exception as e:
-            print(f"שגיאה בניקוי טבלה: {e}")
-        conn.close()
+        # הוספת 20 ניירות ערך אמיתיים (10 מהעולם, 10 מהארץ)
+        print("מוסיף נתוני דוגמה...")
         
+        # כמות ברירת מחדל לכל נייר ערך
+        default_amount = 10
         added_count = 0
         
         # הזרקת מניות מהעולם

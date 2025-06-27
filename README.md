@@ -1,110 +1,228 @@
-# מערכת ניהול תיק השקעות - Investment Portfolio Management System
+# מערכת ניהול תיק השקעות - 3 שירותים נפרדים
 
-## תיאור המערכת
-מערכת ניהול תיק השקעות מתקדמת המאפשרת למשתמשים לנהל את השקעותיהם, לעקוב אחר ביצועים, ולקבל המלצות מבינה מלאכותית. המערכת כוללת ניתוח סיכונים, גרפים אינטראקטיביים, ועדכון מחירים בזמן אמת.
+מערכת לניהול תיק השקעות עם 3 שירותים נפרדים:
+1. **Flask App** - אפליקציית ווב לניהול התיק
+2. **PostgreSQL** - מסד נתונים
+3. **Ollama** - שרת בינה מלאכותית
 
-## תכונות עיקריות
-- **ניהול תיק השקעות**: הוספה, עריכה ומחיקה של ניירות ערך
-- **עדכון מחירים בזמן אמת**: חיבור ל-Alpha Vantage API לקבלת מחירים אקטואליים
-- **ניתוח סיכונים**: חישוב סטיית תקן וניתוח פיזור השקעות
-- **גרפים אינטראקטיביים**: תרשימי עוגה ועמודות להצגת פיזור התיק
-- **בינה מלאכותית**: המלצות השקעה מבוססות Ollama
-- **ממשק משתמש מתקדם**: עיצוב רספונסיבי ונוח לשימוש
-- **אבטחה**: מערכת הרשאות ומשתמשים מוצפנת
+## 🏗️ ארכיטקטורה
 
-## מסד נתונים מלא ומוכן
-המערכת מגיעה עם מסד נתונים מלא ומוכן הכולל:
-- **20 ניירות ערך אמיתיים** (10 מהעולם, 10 מהארץ)
-- **מחירים בזמן אמת** מ-Alpha Vantage API
-- **משתמשים מוכנים**: admin (מנהל) ו-demo_user (משתמש)
-- **טבלאות מלאות**: users, securities, investments
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Flask App     │    │   PostgreSQL    │    │     Ollama      │
+│   (inv_web01)   │    │ (inv_db_Postgres)│    │    (ollama)     │
+│                 │    │                 │    │                 │
+│ Port: 8080      │    │ Port: 5432      │    │ Port: 11434     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-### ניירות ערך כלולים:
-**מהעולם:**
-- Apple (AAPL), Microsoft (MSFT), Tesla (TSLA)
-- Amazon (AMZN), Google (GOOG), Meta (META)
-- Nvidia (NVDA), JPMorgan (JPM), Walmart (WMT), Visa (V)
+## 🚀 הפעלה מהירה
 
-**מהארץ:**
-- טבע (TEVA.TA), פועלים (POLI.TA), לאומי (LUMI.TA)
-- בזק (BEZQ.TA), כיל (ICL.TA), מזרחי (MZTF.TA)
-- צים (ZIM.TA), דסקש (DSKA.TA), איסלנד (ISL.TA), אג"ח ממשלתי
+### דרישות מקדימות
+- Docker
+- Docker Compose
 
-## התקנה והפעלה
-
-### דרישות מערכת
-- Python 3.8+
-- PostgreSQL (לפריסה בענן)
-- Ollama (לבינה מלאכותית)
-
-### התקנה מקומית
+### הפעלה
 ```bash
-# שכפול הפרויקט
-git clone <repository-url>
-cd tomerINV
+# הפעלת כל השירותים
+chmod +x start-services.sh
+./start-services.sh
+
+# או ידנית
+docker-compose up --build -d
+```
+
+### עצירה
+```bash
+# עצירת כל השירותים
+chmod +x stop-services.sh
+./stop-services.sh
+
+# או ידנית
+docker-compose down
+```
+
+## 🌐 גישה לשירותים
+
+- **אפליקציה**: http://localhost:8080
+- **מסד נתונים**: localhost:5432
+- **Ollama**: http://localhost:11434
+
+## 📊 פרטי התחברות
+
+### משתמשים מוכנים
+- **מנהל**: `admin` / `admin`
+- **משתמש**: `user` / `user`
+
+### מסד נתונים
+- **מסד**: `investments`
+- **משתמש**: `postgres`
+- **סיסמה**: `password`
+
+## 🔧 ניהול השירותים
+
+### צפייה בלוגים
+```bash
+# לוגים של האפליקציה
+docker-compose logs -f flask-app
+
+# לוגים של מסד הנתונים
+docker-compose logs -f postgres
+
+# לוגים של Ollama
+docker-compose logs -f ollama
+```
+
+### הפעלה מחדש
+```bash
+# הפעלה מחדש של אפליקציה
+docker-compose restart flask-app
+
+# הפעלה מחדש של מסד נתונים
+docker-compose restart postgres
+
+# הפעלה מחדש של Ollama
+docker-compose restart ollama
+```
+
+### בדיקת סטטוס
+```bash
+# סטטוס כל השירותים
+docker-compose ps
+
+# בדיקת בריאות האפליקציה
+curl http://localhost:8080/health
+
+# בדיקת חיבור למסד נתונים
+docker-compose exec postgres pg_isready -U postgres
+
+# בדיקת חיבור ל-Ollama
+curl http://localhost:11434/api/tags
+```
+
+## 📁 מבנה הקבצים
+
+```
+tomerINV/
+├── app.py                 # אפליקציית Flask הראשית
+├── dbmodel.py            # מודל מסד הנתונים
+├── ollamamodel.py        # מודל בינה מלאכותית
+├── docker-compose.yml    # הגדרת 3 השירותים
+├── Dockerfile            # בניית תמונת האפליקציה
+├── start-services.sh     # סקריפט הפעלה
+├── stop-services.sh      # סקריפט עצירה
+├── requirements.txt      # תלויות Python
+└── templates/            # תבניות HTML
+```
+
+## 🎯 פונקציות עיקריות
+
+### ניהול תיק השקעות
+- הוספת/הסרת ניירות ערך
+- מעקב אחר מחירים
+- חישוב ערך כולל
+- ניתוח סיכונים
+
+### בינה מלאכותית
+- ייעוץ השקעות
+- ניתוח מגמות
+- המלצות פורטפוליו
+
+### דוחות וגרפים
+- גרף עוגה של התיק
+- ניתוח סיכונים
+- דוחות ביצועים
+
+## 🔍 נתיבים עיקריים
+
+- `/` - דף הבית
+- `/portfolio` - תיק ההשקעות
+- `/advice` - ייעוץ AI
+- `/risk` - ניתוח סיכונים
+- `/graph` - גרפים ודוחות
+- `/health` - בדיקת בריאות
+- `/check-env` - בדיקת משתני סביבה
+
+## 🛠️ פיתוח
+
+### הרצה מקומית (ללא Docker)
+```bash
+# הגדרת משתני סביבה
+export DATABASE_URL="postgresql://postgres:password@localhost:5432/investments"
+export OLLAMA_URL="http://localhost:11434"
 
 # התקנת תלויות
 pip install -r requirements.txt
-
-# הגדרת משתני סביבה
-export DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
-export OLLAMA_URL="http://localhost:11434"
 
 # הפעלת האפליקציה
 python app.py
 ```
 
-### פריסה בענן (Railway/Render)
-1. **העלאה ל-GitHub**
-2. **חיבור ל-Railway/Render**
-3. **הגדרת משתני סביבה:**
-   - `DATABASE_URL`: כתובת PostgreSQL
-   - `OLLAMA_URL`: כתובת Ollama (אם זמין)
-4. **הפעלה אוטומטית** - המערכת תעלה עם DB מלא ומוכן
+### בנייה מחדש
+```bash
+# בנייה מחדש של כל השירותים
+docker-compose build --no-cache
 
-## שימוש במערכת
+# בנייה מחדש של שירות ספציפי
+docker-compose build flask-app
+```
 
-### התחברות ראשונית
-- **מנהל:** username: `admin`, password: `admin123`
-- **משתמש:** username: `demo_user`, password: `password123`
+## 📈 ניירות ערך כלולים
 
-### נתיבים עיקריים
-- `/` - דף הבית
-- `/portfolio` - ניהול תיק השקעות
-- `/advice` - המלצות AI
-- `/risk` - ניתוח סיכונים
-- `/graph` - גרפים ותרשימים
-- `/setup-database` - הגדרת מסד נתונים מלא
+המערכת מגיעה עם 20 ניירות ערך אמיתיים:
+- **10 מניות עולמיות**: Apple, Google, Microsoft, Amazon, Tesla, Meta, NVIDIA, Netflix, Adobe, Salesforce
+- **10 מניות ישראליות**: טבע, בזק, מכתשים, דלק, פלקס, מגדל, כלל, איי.די.בי, דיסנט, מנורה
 
-### עדכון מחירים
-- **אוטומטי:** המערכת מעדכנת מחירים אוטומטית
-- **ידני:** כפתור "עדכן מחירים" בדף התיק
+## 🔐 אבטחה
 
-## ארכיטקטורה
-- **Backend:** Flask (Python)
-- **Frontend:** HTML, CSS, JavaScript, Bootstrap
-- **Database:** PostgreSQL (ענן), SQLite (פיתוח)
-- **AI:** Ollama (מקומי/ענן)
-- **API:** Alpha Vantage (מחירים בזמן אמת)
+- סיסמאות מוצפנות
+- ניהול הרשאות (מנהל/משתמש)
+- הגנה מפני CSRF
+- חיבור מאובטח למסד נתונים
 
-## אבטחה
-- הצפנת סיסמאות (Werkzeug)
-- ניהול הרשאות (Flask-Login)
-- הגנה מפני CSRF (Flask-WTF)
-- אימות קלט משתמש
+## 🚨 פתרון בעיות
 
-## פיתוח עתידי
-- [ ] תמיכה במטבעות דיגיטליים
-- [ ] התראות מחיר
-- [ ] ייצוא נתונים ל-Excel
-- [ ] אפליקציה למובייל
-- [ ] אינטגרציה עם ברוקרים נוספים
+### בעיות נפוצות
 
-## רישיון
-MIT License
+1. **פורט תפוס**
+   ```bash
+   # בדיקת פורטים בשימוש
+   lsof -i :8080
+   lsof -i :5432
+   lsof -i :11434
+   ```
 
-## תמיכה
-לשאלות ותמיכה טכנית, פנה ל: [your-email@example.com]
+2. **בעיות חיבור למסד נתונים**
+   ```bash
+   # בדיקת חיבור
+   docker-compose exec postgres psql -U postgres -d investments
+   ```
+
+3. **בעיות עם Ollama**
+   ```bash
+   # בדיקת מודלים
+   curl http://localhost:11434/api/tags
+   
+   # הורדת מודל
+   docker-compose exec ollama ollama pull llama3.1:8b
+   ```
+
+### לוגים מפורטים
+```bash
+# כל הלוגים
+docker-compose logs
+
+# לוגים של שירות ספציפי
+docker-compose logs flask-app
+```
+
+## 📞 תמיכה
+
+לבעיות או שאלות:
+1. בדוק את הלוגים: `docker-compose logs`
+2. בדוק את הסטטוס: `docker-compose ps`
+3. הפעל מחדש: `docker-compose restart`
 
 ---
-**הערה:** המערכת מוכנה לשימוש מיידי עם מסד נתונים מלא ו-20 ניירות ערך אמיתיים!
+
+**מערכת ניהול תיק השקעות** - פרויקט סיום פיתוח מערכות ווב 2025
