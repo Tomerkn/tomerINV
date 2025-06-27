@@ -1,5 +1,6 @@
 # קובץ docker-compose לפריסה מקומית
 # זה מאפשר להריץ את האפליקציה עם Docker
+# מסד הנתונים חייב להיות בענן (PostgreSQL)
 
 version: '3.8'
 
@@ -10,34 +11,14 @@ services:
     ports:
       - "${PORT:-4000}:${PORT:-4000}"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/investments
+      - DATABASE_URL=${DATABASE_URL}  # חובה להגדיר בענן
       - OLLAMA_URL=http://ollama:11434
       - PORT=${PORT:-4000}
       - FLASK_ENV=production
     depends_on:
-      - db
       - ollama
     volumes:
       - ./instance:/app/instance
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
-
-  # מסד נתונים PostgreSQL
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=investments
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     deploy:
       resources:
@@ -75,5 +56,4 @@ services:
       "
 
 volumes:
-  postgres_data:
   ollama_data: 

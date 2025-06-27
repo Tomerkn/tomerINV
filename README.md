@@ -1,167 +1,110 @@
-# אפליקציית ניהול תיק השקעות
+# מערכת ניהול תיק השקעות - Investment Portfolio Management System
 
-אפליקציית Flask לניהול תיק השקעות עם בינה מלאכותית, מסד נתונים PostgreSQL, ומודל Llama3.1 8B.
+## תיאור המערכת
+מערכת ניהול תיק השקעות מתקדמת המאפשרת למשתמשים לנהל את השקעותיהם, לעקוב אחר ביצועים, ולקבל המלצות מבינה מלאכותית. המערכת כוללת ניתוח סיכונים, גרפים אינטראקטיביים, ועדכון מחירים בזמן אמת.
 
 ## תכונות עיקריות
+- **ניהול תיק השקעות**: הוספה, עריכה ומחיקה של ניירות ערך
+- **עדכון מחירים בזמן אמת**: חיבור ל-Alpha Vantage API לקבלת מחירים אקטואליים
+- **ניתוח סיכונים**: חישוב סטיית תקן וניתוח פיזור השקעות
+- **גרפים אינטראקטיביים**: תרשימי עוגה ועמודות להצגת פיזור התיק
+- **בינה מלאכותית**: המלצות השקעה מבוססות Ollama
+- **ממשק משתמש מתקדם**: עיצוב רספונסיבי ונוח לשימוש
+- **אבטחה**: מערכת הרשאות ומשתמשים מוצפנת
 
-- ניהול תיק השקעות אישי
-- מעקב אחר מניות וניירות ערך
-- ייעוץ השקעות מבוסס בינה מלאכותית
-- ניתוח סיכונים
-- גרפים ואינדיקטורים
-- ממשק משתמש בעברית
+## מסד נתונים מלא ומוכן
+המערכת מגיעה עם מסד נתונים מלא ומוכן הכולל:
+- **20 ניירות ערך אמיתיים** (10 מהעולם, 10 מהארץ)
+- **מחירים בזמן אמת** מ-Alpha Vantage API
+- **משתמשים מוכנים**: admin (מנהל) ו-demo_user (משתמש)
+- **טבלאות מלאות**: users, securities, investments
 
-## התקנה מהירה
+### ניירות ערך כלולים:
+**מהעולם:**
+- Apple (AAPL), Microsoft (MSFT), Tesla (TSLA)
+- Amazon (AMZN), Google (GOOG), Meta (META)
+- Nvidia (NVDA), JPMorgan (JPM), Walmart (WMT), Visa (V)
+
+**מהארץ:**
+- טבע (TEVA.TA), פועלים (POLI.TA), לאומי (LUMI.TA)
+- בזק (BEZQ.TA), כיל (ICL.TA), מזרחי (MZTF.TA)
+- צים (ZIM.TA), דסקש (DSKA.TA), איסלנד (ISL.TA), אג"ח ממשלתי
+
+## התקנה והפעלה
 
 ### דרישות מערכת
-- **RAM:** מינימום 8GB (מומלץ 16GB)
-- **CPU:** 4 vCPU ומעלה
-- **דיסק:** 20GB פנוי
-- **Docker & Docker Compose**
+- Python 3.8+
+- PostgreSQL (לפריסה בענן)
+- Ollama (לבינה מלאכותית)
 
-### הפעלה אוטומטית
+### התקנה מקומית
 ```bash
-# הורדת הפרויקט
+# שכפול הפרויקט
 git clone <repository-url>
 cd tomerINV
 
-# הפעלת סקריפט ההתקנה
-./setup.sh
-```
-
-### הפעלה ידנית
-```bash
-# התקנת Docker (אם לא מותקן)
-brew install --cask docker  # macOS
-open /Applications/Docker.app
-
-# הפעלת האפליקציה
-docker-compose up -d --build
-
-# צפייה בלוגים
-docker-compose logs -f
-```
-
-## כתובות גישה
-
-- **האפליקציה:** http://localhost:4000
-- **Ollama API:** http://localhost:11434
-- **PostgreSQL:** localhost:5432
-
-## משתמשים לדוגמה
-
-- **admin / admin123**
-- **demo_user / password123**
-
-## ארכיטקטורה
-
-האפליקציה כוללת 3 שירותים:
-
-1. **web** - האפליקציה הראשית (Flask)
-2. **db** - מסד נתונים PostgreSQL
-3. **ollama** - שירות בינה מלאכותית עם מודל Llama3.1 8B
-
-## ניהול השירותים
-
-### פקודות שימושיות
-```bash
-# צפייה בסטטוס
-docker-compose ps
-
-# צפייה בלוגים
-docker-compose logs -f
-
-# עצירת השירותים
-docker-compose down
-
-# הפעלה מחדש
-docker-compose restart
-
-# עדכון קוד
-docker-compose up -d --build
-
-# ניקוי מלא
-./cleanup.sh
-```
-
-## פיתוח
-
-### הרצה מקומית (ללא Docker)
-```bash
 # התקנת תלויות
 pip install -r requirements.txt
+
+# הגדרת משתני סביבה
+export DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+export OLLAMA_URL="http://localhost:11434"
 
 # הפעלת האפליקציה
 python app.py
 ```
 
-### מבנה הפרויקט
-```
-tomerINV/
-├── app.py                 # האפליקציה הראשית
-├── dbmodel.py            # מודל מסד הנתונים
-├── portfolio_controller.py # בקר תיק השקעות
-├── ollamamodel.py        # מודל בינה מלאכותית
-├── securities.py         # ניהול ניירות ערך
-├── broker.py             # סימולציית ברוקר
-├── docker-compose.yml    # הגדרות Docker
-├── Dockerfile           # תמונת האפליקציה
-├── requirements.txt     # תלויות Python
-├── setup.sh            # סקריפט התקנה
-├── cleanup.sh          # סקריפט ניקוי
-├── templates/          # תבניות HTML
-├── public/            # קבצים סטטיים
-└── instance/          # נתונים מקומיים
-```
+### פריסה בענן (Railway/Render)
+1. **העלאה ל-GitHub**
+2. **חיבור ל-Railway/Render**
+3. **הגדרת משתני סביבה:**
+   - `DATABASE_URL`: כתובת PostgreSQL
+   - `OLLAMA_URL`: כתובת Ollama (אם זמין)
+4. **הפעלה אוטומטית** - המערכת תעלה עם DB מלא ומוכן
 
-## פתרון בעיות
+## שימוש במערכת
 
-### בעיות נפוצות
+### התחברות ראשונית
+- **מנהל:** username: `admin`, password: `admin123`
+- **משתמש:** username: `demo_user`, password: `password123`
 
-1. **Docker לא זמין**
-   ```bash
-   open /Applications/Docker.app
-   ```
+### נתיבים עיקריים
+- `/` - דף הבית
+- `/portfolio` - ניהול תיק השקעות
+- `/advice` - המלצות AI
+- `/risk` - ניתוח סיכונים
+- `/graph` - גרפים ותרשימים
+- `/setup-database` - הגדרת מסד נתונים מלא
 
-2. **פורט תפוס**
-   ```bash
-   lsof -i :4000
-   docker-compose down
-   ```
+### עדכון מחירים
+- **אוטומטי:** המערכת מעדכנת מחירים אוטומטית
+- **ידני:** כפתור "עדכן מחירים" בדף התיק
 
-3. **זיכרון לא מספיק**
-   ```bash
-   docker stats
-   # עדכן מגבלות ב-docker-compose.yml
-   ```
+## ארכיטקטורה
+- **Backend:** Flask (Python)
+- **Frontend:** HTML, CSS, JavaScript, Bootstrap
+- **Database:** PostgreSQL (ענן), SQLite (פיתוח)
+- **AI:** Ollama (מקומי/ענן)
+- **API:** Alpha Vantage (מחירים בזמן אמת)
 
-4. **מודל לא נטען**
-   ```bash
-   docker-compose logs ollama
-   ```
+## אבטחה
+- הצפנת סיסמאות (Werkzeug)
+- ניהול הרשאות (Flask-Login)
+- הגנה מפני CSRF (Flask-WTF)
+- אימות קלט משתמש
 
-### לוגים מפורטים
-```bash
-# לוגים של כל השירותים
-docker-compose logs -f
-
-# לוגים של שירות ספציפי
-docker-compose logs -f web
-docker-compose logs -f ollama
-docker-compose logs -f db
-```
-
-## תרומה
-
-1. Fork את הפרויקט
-2. צור branch חדש
-3. בצע שינויים
-4. שלח Pull Request
+## פיתוח עתידי
+- [ ] תמיכה במטבעות דיגיטליים
+- [ ] התראות מחיר
+- [ ] ייצוא נתונים ל-Excel
+- [ ] אפליקציה למובייל
+- [ ] אינטגרציה עם ברוקרים נוספים
 
 ## רישיון
-
 MIT License
 
 ## תמיכה
+לשאלות ותמיכה טכנית, פנה ל: [your-email@example.com]
 
-לבעיות נוספות, בדוק את הלוגים או פנה לעזרה עם פרטי השגיאה.
+---
+**הערה:** המערכת מוכנה לשימוש מיידי עם מסד נתונים מלא ו-20 ניירות ערך אמיתיים!

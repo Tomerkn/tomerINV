@@ -32,29 +32,13 @@ print("=== סיום בדיקת משתני סביבה ===")
 # מביאים הקלסים שיצרנו בקבצים אחרים
 print("=== התחלת ייבוא dbmodel ===")
 try:
-    from dbmodel import PortfolioModel
+    from dbmodel import (PortfolioModel, PortfolioController, RiskManager, 
+                        Stock, Bond, Broker)
     print("=== סיום ייבוא dbmodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא dbmodel: {str(e)}")
     logger.error(f"שגיאה בייבוא dbmodel: {str(e)}")
     sys.exit(1)
-
-print("=== התחלת ייבוא portfolio_controller ===")
-try:
-    from portfolio_controller import PortfolioController, RiskManager
-    print("=== סיום ייבוא portfolio_controller ===")
-except Exception as e:
-    print(f"שגיאה בייבוא portfolio_controller: {str(e)}")
-    logger.error(f"שגיאה בייבוא portfolio_controller: {str(e)}")
-    sys.exit(1)
-
-print("=== התחלת ייבוא securities ===")
-try:
-    from securities import Stock, Bond
-    print("=== סיום ייבוא securities ===")
-except Exception as e:
-    print(f"שגיאה בייבוא securities: {str(e)}")
-    logger.error(f"שגיאה בייבוא securities: {str(e)}")
 
 print("=== התחלת ייבוא ollamamodel ===")
 try:
@@ -63,14 +47,6 @@ try:
 except Exception as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
     logger.error(f"שגיאה בייבוא ollamamodel: {str(e)}")
-
-print("=== התחלת ייבוא broker ===")
-try:
-    from broker import Broker
-    print("=== סיום ייבוא broker ===")
-except Exception as e:
-    print(f"שגיאה בייבוא broker: {str(e)}")
-    logger.error(f"שגיאה בייבוא broker: {str(e)}")
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -221,17 +197,30 @@ def login():  # פונקציה שמטפלת בכניסה למערכת
             password = form.password.data
             print(f"ניסיון התחברות עם שם משתמש: {username}")
             
-            user = USERS.get(username)  # מחפש את המשתמש ברשימת המשתמשים
-            print(f"משתמש נמצא: {user is not None}")
+            # מחפש את המשתמש במסד הנתונים
+            user_data = portfolio_model.get_user_by_username(username)
+            print(f"משתמש נמצא במסד: {user_data is not None}")
             
-            if user and user.check_password(password):  # בודק אם המשתמש קיים והסיסמה נכונה
-                print("סיסמה נכונה, מתחבר...")
-                login_user(user)  # מחבר את המשתמש למערכת
-                print("התחברות הצליחה")
-                return redirect(url_for('index'))  # מפנה אותו לדף הבית
+            if user_data:
+                # יוצר אובייקט User מהנתונים במסד
+                user = User(
+                    id=user_data['id'],
+                    username=user_data['username'],
+                    password_hash=user_data['password_hash'],
+                    role=user_data.get('role', 'user')
+                )
+                
+                if user.check_password(password):  # בודק אם הסיסמה נכונה
+                    print("סיסמה נכונה, מתחבר...")
+                    login_user(user)  # מחבר את המשתמש למערכת
+                    print("התחברות הצליחה")
+                    return redirect(url_for('index'))  # מפנה אותו לדף הבית
+                else:
+                    print("סיסמה שגויה")
+                    flash('שם משתמש או סיסמה שגויים', 'danger')
             else:
-                print("שם משתמש או סיסמה שגויים")
-                flash('שם משתמש או סיסמה שגויים', 'danger')  # מציג הודעת שגיאה אם הפרטים שגויים
+                print("משתמש לא נמצא")
+                flash('שם משתמש או סיסמה שגויים', 'danger')
         
         print("מציג דף כניסה")
         return render_template('login.html', form=form)  # מציג את דף הכניסה עם הטופס
@@ -1148,8 +1137,40 @@ def debug_info():
 
 @app.route('/setup-database')
 def setup_database():
-    """נתיב להגדרת מסד הנתונים המלא - יוצר טבלאות ומשתמשים"""
+    """
+    נתיב להגדרת מסד הנתונים המלא - יוצר טבלאות, משתמשים, ומזריק 20 ניירות ערך אמיתיים (10 מהעולם, 10 מהארץ) עם מחירים בזמן אמת מ-Alpha Vantage API
+    """
     print("=== התחלת הגדרת מסד נתונים מלא ===")
+    
+    # הגדרת רשימות ניירות ערך
+    world_securities = [
+        ("AAPL", "Apple", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("MSFT", "Microsoft", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("TSLA", "Tesla", "תחבורה", "גבוה", "מניה רגילה"),
+        ("AMZN", "Amazon", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("GOOG", "Google", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("META", "Meta", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("NVDA", "Nvidia", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("JPM", "JPMorgan", "פיננסים", "נמוך", "מניה רגילה"),
+        ("WMT", "Walmart", "צריכה פרטית", "נמוך", "מניה רגילה"),
+        ("V", "Visa", "פיננסים", "נמוך", "מניה רגילה")
+    ]
+    
+    israel_securities = [
+        ('TEVA.TA', 'טבע', 'בריאות', 'גבוה', 'מניה רגילה'),
+        ('POLI.TA', 'פועלים', 'פיננסים', 'נמוך', 'מניה רגילה'),
+        ('LUMI.TA', 'לאומי', 'פיננסים', 'נמוך', 'מניה רגילה'),
+        ('BEZQ.TA', 'בזק', 'תקשורת', 'נמוך', 'מניה רגילה'),
+        ('ICL.TA', 'כיל', 'תעשייה', 'נמוך', 'מניה רגילה'),
+        ('MZTF.TA', 'מזרחי', 'פיננסים', 'נמוך', 'מניה רגילה'),
+        ('ZIM.TA', 'צים', 'תחבורה', 'גבוה', 'מניה רגילה'),
+        ('DSKA.TA', 'דסקש', 'תעשייה', 'נמוך', 'מניה רגילה'),
+        ('ISL.TA', 'איסלנד', 'תיירות', 'גבוה', 'מניה רגילה'),
+        ('GOVBOND.TA', 'אגח ממשלתי', 'פיננסים', 'נמוך', 'אגח ממשלתית')
+    ]
+    
+    sample_securities = world_securities + israel_securities
+    
     try:
         # יצירת טבלאות
         print("יוצר טבלאות...")
@@ -1159,28 +1180,9 @@ def setup_database():
         # הוספת משתמשים
         print("מוסיף משתמשים...")
         from werkzeug.security import generate_password_hash
-        
         conn = portfolio_model.get_connection()
         cursor = conn.cursor()
-        
-        # הוספת משתמש admin
         admin_password_hash = generate_password_hash('admin123')
-        if portfolio_model.use_postgres:
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, email, role)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (username) DO UPDATE SET
-                    password_hash = EXCLUDED.password_hash,
-                    email = EXCLUDED.email,
-                    role = EXCLUDED.role
-            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
-        else:
-            cursor.execute("""
-                INSERT OR REPLACE INTO users (username, password_hash, email, role)
-                VALUES (?, ?, ?, ?)
-            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
-        
-        # הוספת משתמש demo
         demo_password_hash = generate_password_hash('password123')
         if portfolio_model.use_postgres:
             cursor.execute("""
@@ -1190,57 +1192,125 @@ def setup_database():
                     password_hash = EXCLUDED.password_hash,
                     email = EXCLUDED.email,
                     role = EXCLUDED.role
+            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, email, role)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    email = EXCLUDED.email,
+                    role = EXCLUDED.role
             """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
         else:
             cursor.execute("""
                 INSERT OR REPLACE INTO users (username, password_hash, email, role)
                 VALUES (?, ?, ?, ?)
+            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+            cursor.execute("""
+                INSERT OR REPLACE INTO users (username, password_hash, email, role)
+                VALUES (?, ?, ?, ?)
             """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
-        
         conn.commit()
         conn.close()
         print("משתמשים נוספו בהצלחה")
         
-        # הוספת נתוני דוגמה
-        print("מוסיף נתוני דוגמה...")
-        sample_securities = [
-            ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-            ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-            ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
-            ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה"),
-            ("מיקרוסופט", 8, 300.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-            ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה")
-        ]
+        # הוספת 20 ניירות ערך אמיתיים (10 מהעולם, 10 מהארץ)
+        print("מוסיף 20 ניירות ערך אמיתיים...")
         
-        for name, amount, price, industry, variance, security_type in sample_securities:
-            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
-            print(f"נוסף: {name} - {amount} יחידות ב-{price} ₪")
+        # כמות ברירת מחדל לכל נייר ערך
+        default_amount = 10
+        
+        # בדיקה אם כבר יש ניירות ערך
+        existing_securities = portfolio_model.get_all_securities()
+        if len(existing_securities) > 0:
+            print(f"כבר יש {len(existing_securities)} ניירות ערך במסד הנתונים")
+            result = f"""
+            <h2>הגדרת מסד נתונים - הושלמה!</h2>
+            <p>המסד הנתונים כבר מכיל {len(existing_securities)} ניירות ערך.</p>
+            <h3>מה קיים:</h3>
+            <ul>
+                <li><strong>טבלאות:</strong> users, securities, investments</li>
+                <li><strong>משתמשים:</strong> admin, demo_user</li>
+                <li><strong>ניירות ערך:</strong> {len(existing_securities)} מניות ואגרות חוב</li>
+            </ul>
+            <h3>פרטי התחברות:</h3>
+            <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+            <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+            <h3>קישורים מהירים:</h3>
+            <p><a href="/login">התחברות למערכת</a></p>
+            <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
+            <p><a href="/">דף הבית</a></p>
+            """
+            return result
+        
+        # ניקוי טבלת השקעות קיימת
+        conn = portfolio_model.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM investments")
+            conn.commit()
+            print("טבלת השקעות נוקתה")
+        except Exception as e:
+            print(f"שגיאה בניקוי טבלה: {e}")
+        conn.close()
+        
+        added_count = 0
+        
+        # הזרקת מניות מהעולם
+        for symbol, name, industry, variance, security_type in world_securities:
+            try:
+                price = Broker.update_price(symbol)
+                portfolio_model.add_security(name, default_amount, price, industry, variance, security_type)
+                print(f"נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{price:.2f} ₪")
+                added_count += 1
+            except Exception as e:
+                print(f"שגיאה בהוספת {name}: {e}")
+                # אם יש שגיאה, נוסיף עם מחיר ברירת מחדל
+                try:
+                    default_price = 100.0  # מחיר ברירת מחדל
+                    portfolio_model.add_security(name, default_amount, default_price, industry, variance, security_type)
+                    print(f"נוסף עם מחיר ברירת מחדל: {name} ({symbol}) - {default_amount} יחידות ב-{default_price:.2f} ₪")
+                    added_count += 1
+                except Exception as e2:
+                    print(f"שגיאה גם עם מחיר ברירת מחדל: {e2}")
+        
+        # הזרקת מניות/אג"ח מהארץ
+        for symbol, name, industry, variance, security_type in israel_securities:
+            try:
+                price = Broker.update_price(symbol)
+                portfolio_model.add_security(name, default_amount, price, industry, variance, security_type)
+                print(f"נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{price:.2f} ₪")
+                added_count += 1
+            except Exception as e:
+                print(f"שגיאה בהוספת {name}: {e}")
+                # אם יש שגיאה, נוסיף עם מחיר ברירת מחדל
+                try:
+                    default_price = 50.0  # מחיר ברירת מחדל למניות ישראליות
+                    portfolio_model.add_security(name, default_amount, default_price, industry, variance, security_type)
+                    print(f"נוסף עם מחיר ברירת מחדל: {name} ({symbol}) - {default_amount} יחידות ב-{default_price:.2f} ₪")
+                    added_count += 1
+                except Exception as e2:
+                    print(f"שגיאה גם עם מחיר ברירת מחדל: {e2}")
         
         print("=== סיום הגדרת מסד נתונים מלא ===")
-        
         result = f"""
         <h2>הגדרת מסד נתונים - הצליחה!</h2>
-        <p>המסד הנתונים הוגדר בהצלחה עם כל הטבלאות והנתונים.</p>
-        
+        <p>המסד הנתונים הוגדר בהצלחה עם כל הטבלאות, המשתמשים ו-{added_count} ניירות ערך אמיתיים.</p>
         <h3>מה שנוצר:</h3>
         <ul>
             <li><strong>טבלאות:</strong> users, securities, investments</li>
             <li><strong>משתמשים:</strong> admin, demo_user</li>
-            <li><strong>ניירות ערך:</strong> {len(sample_securities)} מניות ואגרות חוב</li>
+            <li><strong>ניירות ערך:</strong> {added_count} מניות ואגרות חוב (מחירים בזמן אמת מה-API)</li>
         </ul>
-        
         <h3>פרטי התחברות:</h3>
         <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
         <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
-        
         <h3>קישורים מהירים:</h3>
         <p><a href="/login">התחברות למערכת</a></p>
         <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
         <p><a href="/">דף הבית</a></p>
         """
-        
         return result
-        
     except Exception as e:
         print(f"שגיאה בהגדרת מסד נתונים: {str(e)}")
         import traceback

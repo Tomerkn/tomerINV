@@ -23,9 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # מעתיק את כל הקבצים של האפליקציה
 COPY . .
 
-# מגדיר הרשאות לסקריפט הפעלה
-RUN chmod +x start.sh
-
 # מגדיר משתנה סביבה
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
@@ -35,4 +32,4 @@ ENV PYTHONPATH=/app
 EXPOSE 8080
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
-CMD ["./start.sh"] 
+CMD ["python", "app.py"] 
