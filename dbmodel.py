@@ -7,6 +7,7 @@ import requests  # ייבוא ספריית בקשות HTTP
 import yfinance as yf  # ספרייה שמביאה נתונים מהבורסה האמריקאית
 import time  # ספרייה לעיכובים בין בקשות
 from abc import ABC, abstractmethod  # כלים ליצירת מחלקות בסיס
+import psycopg2
 
 print("=== התחלת טעינת dbmodel.py ===")
 print("=== ייבוא ספריות הושלם ===")
@@ -484,16 +485,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
     """פה אני שומר את כל המידע של התיק – מניות, אג"חים, מחירים, כמויות וכו'"""
 
     def __init__(self):
-        print("=== התחלת יצירת PortfolioModel ===")
-        self.db_url = os.environ.get('DATABASE_URL')  # כתובת למסד בענן (חובה)
-        print(f"DATABASE_URL מהסביבה: {self.db_url}")
-        
-        # דורש DATABASE_URL - רק PostgreSQL נתמך
-        if not self.db_url:
-            error_msg = "\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n"
-            print(error_msg)
-            raise Exception(error_msg)
-        
+        self.DATABASE_URL = os.environ.get('DATABASE_URL')
+        if not self.DATABASE_URL:
+            raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n")
+
         self.use_postgres = True
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
@@ -501,10 +496,9 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
     def get_connection(self):
         """פותח חיבור למסד הנתונים PostgreSQL"""
         print("=== התחלת get_connection ===")
-        print(f"מתחבר ל-PostgreSQL: {self.db_url}")
+        print(f"מתחבר ל-PostgreSQL: {self.DATABASE_URL}")
         try:
-            import psycopg2
-            connection = psycopg2.connect(self.db_url)
+            connection = psycopg2.connect(self.DATABASE_URL)
             print("חיבור ל-PostgreSQL הצליח")
             return connection
         except Exception as e:
@@ -533,13 +527,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS investments (
                     id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) UNIQUE NOT NULL,
-                    amount DECIMAL(10,2) NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    industry VARCHAR(100),
-                    variance VARCHAR(50),
-                    security_type VARCHAR(100),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    name VARCHAR(120) UNIQUE NOT NULL,
+                    amount INTEGER NOT NULL,
+                    price FLOAT NOT NULL,
+                    industry VARCHAR(120),
+                    variance FLOAT,
+                    security_type VARCHAR(50)
                 )
             ''')
             

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, Response, request, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, Response, request, session
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                         login_required, current_user)
 from flask_wtf import FlaskForm
@@ -22,13 +22,16 @@ from datetime import datetime
 
 print("=== התחלת ייבוא ספריות ===")
 print("=== בדיקת משתני סביבה ===")
-DATABASE_URL = os.getenv('DATABASE_URL')
-PORT = os.getenv('PORT', '4000')
-OLLAMA_URL = os.getenv('OLLAMA_URL')
+DATABASE_URL = os.environ.get('DATABASE_URL')
+PORT = int(os.environ.get('PORT', 4000))
+OLLAMA_URL = os.environ.get('OLLAMA_URL')
 print(f"DATABASE_URL: {DATABASE_URL}")
 print(f"PORT: {PORT}")
 print(f"OLLAMA_URL: {OLLAMA_URL}")
 print("=== סיום בדיקת משתני סביבה ===")
+
+if not DATABASE_URL:
+    raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n")
 
 # מביאים הקלסים שיצרנו בקבצים אחרים
 print("=== התחלת ייבוא dbmodel ===")
@@ -41,10 +44,12 @@ except Exception as e:
 
 print("=== התחלת ייבוא ollamamodel ===")
 try:
-    from ollamamodel import AI_Agent
+    from ollamamodel import AI_Agent, OllamaModel
     print("=== סיום ייבוא ollamamodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
+    logger.error(f"שגיאה בייבוא ollamamodel: {str(e)}")
+    ai_agent = None
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -56,8 +61,8 @@ logger = logging.getLogger(__name__)
 
 # יוצרים את האתר - זה הדבר הכי חשוב
 app = Flask(__name__)  # זה יוצר את האתר שלנו
-app.config['SECRET_KEY'] = 'your-secret-key-here'  # מפתח חשאי לאבטחה
-login_manager = LoginManager()  # דבר שמנהל כניסה למערכת
+app.secret_key = os.environ.get('SECRET_KEY', 'supersecretkey')  # מפתח חשאי לאבטחה
+login_manager = LoginManager(app)  # דבר שמנהל כניסה למערכת
 login_manager.init_app(app)  # מחברים אותו לאתר
 login_manager.login_view = 'login'  # איפה לשלוח אנשים שלא התחברו
 login_manager.login_message = 'אנא התחבר כדי לגשת לדף זה'  # הודעה בעברית
@@ -715,11 +720,11 @@ def env_test():
     print("=== התחלת בדיקת משתני סביבה ===")
     
     env_vars = {
-        'DATABASE_URL': os.getenv('DATABASE_URL', 'לא מוגדר'),
-        'OLLAMA_URL': os.getenv('OLLAMA_URL', 'לא מוגדר'),
-        'PORT': os.getenv('PORT', 'לא מוגדר'),
-        'FLASK_ENV': os.getenv('FLASK_ENV', 'לא מוגדר'),
-        'SECRET_KEY': os.getenv('SECRET_KEY', 'לא מוגדר')
+        'DATABASE_URL': os.environ.get('DATABASE_URL', 'לא מוגדר'),
+        'OLLAMA_URL': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
+        'PORT': os.environ.get('PORT', 'לא מוגדר'),
+        'FLASK_ENV': os.environ.get('FLASK_ENV', 'לא מוגדר'),
+        'SECRET_KEY': os.environ.get('SECRET_KEY', 'לא מוגדר')
     }
     
     result = """
@@ -868,39 +873,21 @@ def connection_test():
 
 @app.route('/inject-cloud-data')
 def inject_cloud_data():
-    """נתיב להזרקת נתונים אוטומטית למסד הנתונים בענן"""
+    """הזרקת נתונים למסד הנתונים PostgreSQL בענן"""
     print("=== התחלת הזרקת נתונים לענן ===")
     try:
-        # בדיקה אם יש DATABASE_URL
-        db_url = os.getenv('DATABASE_URL')
-        if not db_url:
-            return """
-            <h2>שגיאה בהזרקת נתונים</h2>
-            <p>לא נמצא DATABASE_URL - האפליקציה לא מחוברת למסד נתונים בענן</p>
-            <p>האפליקציה משתמשת ב-SQLite מקומי</p>
-            <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
-            """
-        
-        # התחברות למסד הנתונים
-        print("מתחבר למסד הנתונים בענן...")
-        conn = psycopg2.connect(db_url)
+        conn = portfolio_model.get_connection()
         cursor = conn.cursor()
-        print("התחברות למסד הנתונים הצליחה")
         
         # יצירת טבלאות
         print("יוצר טבלאות...")
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS securities (
+            CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
-                symbol VARCHAR(10) UNIQUE NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                sector VARCHAR(50),
-                price DECIMAL(10,2),
-                change_percent DECIMAL(5,2),
-                volume BIGINT,
-                market_cap DECIMAL(15,2),
-                pe_ratio DECIMAL(8,2),
-                dividend_yield DECIMAL(5,2),
+                username VARCHAR(80) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(120) UNIQUE,
+                role VARCHAR(20) DEFAULT 'user',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -908,21 +895,12 @@ def inject_cloud_data():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS investments (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                symbol VARCHAR(10) NOT NULL,
-                shares INTEGER NOT NULL,
-                purchase_price DECIMAL(10,2) NOT NULL,
-                purchase_date DATE NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                email VARCHAR(100),
+                name VARCHAR(255) UNIQUE NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                price DECIMAL(10,2) NOT NULL,
+                industry VARCHAR(100),
+                variance VARCHAR(50),
+                security_type VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -933,64 +911,50 @@ def inject_cloud_data():
         # הוספת ניירות ערך לדוגמה
         print("מוסיף ניירות ערך...")
         securities = [
-            ('AAPL', 'Apple Inc.', 'Technology', 150.25, 2.5, 50000000, 2500000000000, 25.5, 0.6),
-            ('MSFT', 'Microsoft Corporation', 'Technology', 320.75, 1.8, 30000000, 2400000000000, 30.2, 0.8),
-            ('GOOGL', 'Alphabet Inc.', 'Technology', 2800.50, 3.2, 20000000, 1800000000000, 28.1, 0.0),
-            ('AMZN', 'Amazon.com Inc.', 'Consumer Discretionary', 3300.25, -1.2, 25000000, 1600000000000, 45.3, 0.0),
-            ('TSLA', 'Tesla Inc.', 'Automotive', 850.75, 5.8, 40000000, 800000000000, 120.5, 0.0),
-            ('NVDA', 'NVIDIA Corporation', 'Technology', 450.30, 4.1, 35000000, 1100000000000, 35.2, 0.2),
-            ('META', 'Meta Platforms Inc.', 'Technology', 280.90, 2.7, 28000000, 750000000000, 22.8, 0.0),
-            ('JNJ', 'Johnson & Johnson', 'Healthcare', 165.40, 1.2, 15000000, 400000000000, 18.3, 2.8),
-            ('V', 'Visa Inc.', 'Financial', 240.60, 2.1, 20000000, 500000000000, 32.1, 0.7),
-            ('JPM', 'JPMorgan Chase & Co.', 'Financial', 140.80, 1.5, 25000000, 420000000000, 12.8, 2.9)
+            ('אפל', 10, 150.25, 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+            ('מיקרוסופט', 8, 320.75, 'טכנולוגיה', 'בינוני', 'מניה רגילה'),
+            ('גוגל', 5, 2800.50, 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+            ('אמזון', 2, 3300.25, 'צריכה פרטית', 'גבוה', 'מניה רגילה'),
+            ('טסלה', 3, 850.75, 'תחבורה', 'גבוה', 'מניה רגילה'),
+            ('אגח ממשלתי', 100, 100.00, 'פיננסים', 'נמוך', 'אגח ממשלתית'),
+            ('אגח קונצרנית', 50, 95.50, 'תעשייה', 'בינוני', 'אגח קונצרנית'),
+            ('נדלן', 20, 75.25, 'נדלן', 'בינוני', 'מניה רגילה'),
+            ('בריאות', 15, 120.80, 'בריאות', 'בינוני', 'מניה רגילה'),
+            ('אנרגיה', 25, 45.30, 'אנרגיה', 'גבוה', 'מניה רגילה')
         ]
         
         for security in securities:
             cursor.execute("""
-                INSERT INTO securities (symbol, name, sector, price, change_percent, volume, market_cap, pe_ratio, dividend_yield)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (symbol) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    sector = EXCLUDED.sector,
+                INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (name) DO UPDATE SET
+                    amount = EXCLUDED.amount,
                     price = EXCLUDED.price,
-                    change_percent = EXCLUDED.change_percent,
-                    volume = EXCLUDED.volume,
-                    market_cap = EXCLUDED.market_cap,
-                    pe_ratio = EXCLUDED.pe_ratio,
-                    dividend_yield = EXCLUDED.dividend_yield
+                    industry = EXCLUDED.industry,
+                    variance = EXCLUDED.variance,
+                    security_type = EXCLUDED.security_type
             """, security)
         
-        # הוספת השקעות לדוגמה
-        print("מוסיף השקעות...")
-        investments = [
-            (1, 'AAPL', 100, 145.50, '2024-01-15'),
-            (1, 'MSFT', 50, 300.25, '2024-02-20'),
-            (1, 'GOOGL', 25, 2700.00, '2024-03-10'),
-            (1, 'TSLA', 30, 800.00, '2024-01-30'),
-            (1, 'NVDA', 40, 420.75, '2024-02-15')
+        # הוספת משתמשים לדוגמה
+        print("מוסיף משתמשים...")
+        users = [
+            ('admin', 'pbkdf2:sha256:600000$admin_hash$admin123', 'admin@example.com', 'admin'),
+            ('demo_user', 'pbkdf2:sha256:600000$demo_hash$password123', 'demo@example.com', 'user')
         ]
         
-        for investment in investments:
+        for user in users:
             cursor.execute("""
-                INSERT INTO investments (user_id, symbol, shares, purchase_price, purchase_date)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT DO NOTHING
-            """, investment)
-        
-        # הוספת משתמש לדוגמה
-        print("מוסיף משתמש לדוגמה...")
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, email)
-            VALUES ('demo_user', 'pbkdf2:sha256:600000$demo_hash$password123', 'demo@example.com')
-            ON CONFLICT (username) DO NOTHING
-        """)
+                INSERT INTO users (username, password_hash, email, role)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    email = EXCLUDED.email,
+                    role = EXCLUDED.role
+            """, user)
         
         conn.commit()
         
         # בדיקת התוצאה
-        cursor.execute("SELECT COUNT(*) FROM securities")
-        securities_count = cursor.fetchone()[0]
-        
         cursor.execute("SELECT COUNT(*) FROM investments")
         investments_count = cursor.fetchone()[0]
         
@@ -999,7 +963,7 @@ def inject_cloud_data():
         
         conn.close()
         
-        print(f"הזרקת נתונים הושלמה: {securities_count} ניירות ערך, {investments_count} השקעות, {users_count} משתמשים")
+        print(f"הזרקת נתונים הושלמה: {investments_count} השקעות, {users_count} משתמשים")
         
         result = f"""
         <h2>הזרקת נתונים לענן - הצליחה!</h2>
@@ -1007,14 +971,13 @@ def inject_cloud_data():
         
         <h3>סיכום הנתונים שהוזרקו:</h3>
         <ul>
-            <li><strong>ניירות ערך:</strong> {securities_count}</li>
             <li><strong>השקעות:</strong> {investments_count}</li>
             <li><strong>משתמשים:</strong> {users_count}</li>
         </ul>
         
-        <h3>פרטי התחברות לדוגמה:</h3>
-        <p><strong>שם משתמש:</strong> demo_user</p>
-        <p><strong>סיסמה:</strong> password123</p>
+        <h3>פרטי התחברות:</h3>
+        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+        <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
         
         <h3>קישורים מהירים:</h3>
         <p><a href="/login">התחברות למערכת</a></p>
