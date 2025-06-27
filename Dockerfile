@@ -27,8 +27,9 @@ ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 
-# פותח פורט 8080
-EXPOSE 8080
+# פותח פורט דינמי (Railway/Heroku יקבעו)
+EXPOSE $PORT
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
-CMD ["python", "app.py"] 
+# משתמש ב-gunicorn לפריסה בענן
+CMD gunicorn --bind 0.0.0.0:$PORT --timeout 30 --workers 4 --preload app:app 

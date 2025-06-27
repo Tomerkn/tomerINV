@@ -1,228 +1,133 @@
-# מערכת ניהול תיק השקעות - 3 שירותים נפרדים
+# מערכת ניהול תיק השקעות
 
-מערכת לניהול תיק השקעות עם 3 שירותים נפרדים:
-1. **Flask App** - אפליקציית ווב לניהול התיק
-2. **PostgreSQL** - מסד נתונים
-3. **Ollama** - שרת בינה מלאכותית
+מערכת Flask לניהול תיק השקעות עם בינה מלאכותית (Ollama) ומסד נתונים PostgreSQL.
 
-## 🏗️ ארכיטקטורה
+## 🚀 פריסה בענן
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Flask App     │    │   PostgreSQL    │    │     Ollama      │
-│   (inv_web01)   │    │ (inv_db_Postgres)│    │    (ollama)     │
-│                 │    │                 │    │                 │
-│ Port: 8080      │    │ Port: 5432      │    │ Port: 11434     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+### אפשרות 1: Railway (מומלץ)
 
-## 🚀 הפעלה מהירה
+1. **התחבר ל-Railway**:
+   - היכנס ל-[railway.app](https://railway.app)
+   - התחבר עם GitHub
 
-### דרישות מקדימות
-- Docker
-- Docker Compose
+2. **צור פרויקט חדש**:
+   - לחץ על "New Project"
+   - בחר "Deploy from GitHub repo"
+   - בחר את הרפוזיטורי שלך
 
-### הפעלה
+3. **הגדר משתני סביבה**:
+   - הוסף `DATABASE_URL` עם כתובת PostgreSQL
+   - הוסף `OLLAMA_URL` (אופציונלי - אם יש לך Ollama בענן)
+
+4. **פרוס**:
+   - Railway יזהה את ה-Dockerfile ויפרוס אוטומטית
+   - האפליקציה תהיה זמינה בכתובת שניתנת
+
+### אפשרות 2: Heroku
+
+1. **התקן Heroku CLI**:
+   ```bash
+   # macOS
+   brew install heroku/brew/heroku
+   
+   # Windows
+   # הורד מ: https://devcenter.heroku.com/articles/heroku-cli
+   ```
+
+2. **התחבר ל-Heroku**:
+   ```bash
+   heroku login
+   ```
+
+3. **צור אפליקציה**:
+   ```bash
+   heroku create your-app-name
+   ```
+
+4. **הוסף מסד נתונים**:
+   ```bash
+   heroku addons:create heroku-postgresql:mini
+   ```
+
+5. **הגדר משתני סביבה**:
+   ```bash
+   heroku config:set DATABASE_URL=$(heroku config:get DATABASE_URL)
+   ```
+
+6. **פרוס**:
+   ```bash
+   git push heroku main
+   ```
+
+### אפשרות 3: Docker Compose (מקומי)
+
+להרצה מקומית עם Docker:
+
 ```bash
-# הפעלת כל השירותים
-chmod +x start-services.sh
-./start-services.sh
+# הפעל את כל השירותים
+docker-compose up --build
 
-# או ידנית
-docker-compose up --build -d
+# או ברקע
+docker-compose up -d --build
 ```
 
-### עצירה
-```bash
-# עצירת כל השירותים
-chmod +x stop-services.sh
-./stop-services.sh
+## 🔧 משתני סביבה נדרשים
 
-# או ידנית
-docker-compose down
-```
+- `DATABASE_URL`: כתובת PostgreSQL (נדרש)
+- `PORT`: פורט להרצה (נקבע אוטומטית בענן)
+- `OLLAMA_URL`: כתובת Ollama (אופציונלי)
 
-## 🌐 גישה לשירותים
-
-- **אפליקציה**: http://localhost:8080
-- **מסד נתונים**: localhost:5432
-- **Ollama**: http://localhost:11434
-
-## 📊 פרטי התחברות
-
-### משתמשים מוכנים
-- **מנהל**: `admin` / `admin`
-- **משתמש**: `user` / `user`
-
-### מסד נתונים
-- **מסד**: `investments`
-- **משתמש**: `postgres`
-- **סיסמה**: `password`
-
-## 🔧 ניהול השירותים
-
-### צפייה בלוגים
-```bash
-# לוגים של האפליקציה
-docker-compose logs -f flask-app
-
-# לוגים של מסד הנתונים
-docker-compose logs -f postgres
-
-# לוגים של Ollama
-docker-compose logs -f ollama
-```
-
-### הפעלה מחדש
-```bash
-# הפעלה מחדש של אפליקציה
-docker-compose restart flask-app
-
-# הפעלה מחדש של מסד נתונים
-docker-compose restart postgres
-
-# הפעלה מחדש של Ollama
-docker-compose restart ollama
-```
-
-### בדיקת סטטוס
-```bash
-# סטטוס כל השירותים
-docker-compose ps
-
-# בדיקת בריאות האפליקציה
-curl http://localhost:8080/health
-
-# בדיקת חיבור למסד נתונים
-docker-compose exec postgres pg_isready -U postgres
-
-# בדיקת חיבור ל-Ollama
-curl http://localhost:11434/api/tags
-```
-
-## 📁 מבנה הקבצים
+## 📁 מבנה הפרויקט
 
 ```
 tomerINV/
-├── app.py                 # אפליקציית Flask הראשית
+├── app.py                 # האפליקציה הראשית
 ├── dbmodel.py            # מודל מסד הנתונים
-├── ollamamodel.py        # מודל בינה מלאכותית
-├── docker-compose.yml    # הגדרת 3 השירותים
-├── Dockerfile            # בניית תמונת האפליקציה
-├── start-services.sh     # סקריפט הפעלה
-├── stop-services.sh      # סקריפט עצירה
-├── requirements.txt      # תלויות Python
-└── templates/            # תבניות HTML
+├── ollamamodel.py        # חיבור ל-Ollama
+├── templates/            # תבניות HTML
+├── static/               # קבצים סטטיים
+├── Dockerfile           # הגדרת Docker
+├── docker-compose.yml   # הגדרת שירותים מקומיים
+├── railway.json         # הגדרת Railway
+├── Procfile             # הגדרת Heroku
+└── requirements.txt     # תלויות Python
 ```
 
-## 🎯 פונקציות עיקריות
+## 🛠️ פיתוח מקומי
 
-### ניהול תיק השקעות
-- הוספת/הסרת ניירות ערך
-- מעקב אחר מחירים
-- חישוב ערך כולל
-- ניתוח סיכונים
-
-### בינה מלאכותית
-- ייעוץ השקעות
-- ניתוח מגמות
-- המלצות פורטפוליו
-
-### דוחות וגרפים
-- גרף עוגה של התיק
-- ניתוח סיכונים
-- דוחות ביצועים
-
-## 🔍 נתיבים עיקריים
-
-- `/` - דף הבית
-- `/portfolio` - תיק ההשקעות
-- `/advice` - ייעוץ AI
-- `/risk` - ניתוח סיכונים
-- `/graph` - גרפים ודוחות
-- `/health` - בדיקת בריאות
-- `/check-env` - בדיקת משתני סביבה
-
-## 🛠️ פיתוח
-
-### הרצה מקומית (ללא Docker)
 ```bash
-# הגדרת משתני סביבה
-export DATABASE_URL="postgresql://postgres:password@localhost:5432/investments"
-export OLLAMA_URL="http://localhost:11434"
-
-# התקנת תלויות
+# התקן תלויות
 pip install -r requirements.txt
 
-# הפעלת האפליקציה
+# הגדר משתני סביבה
+export DATABASE_URL="your_postgresql_url"
+export PORT=4000
+
+# הפעל את האפליקציה
 python app.py
 ```
 
-### בנייה מחדש
-```bash
-# בנייה מחדש של כל השירותים
-docker-compose build --no-cache
+## 🔍 בדיקת בריאות
 
-# בנייה מחדש של שירות ספציפי
-docker-compose build flask-app
+האפליקציה כוללת נתיב `/health` לבדיקת בריאות:
+
+```bash
+curl http://your-app-url/health
 ```
 
-## 📈 ניירות ערך כלולים
+## 📊 תכונות
 
-המערכת מגיעה עם 20 ניירות ערך אמיתיים:
-- **10 מניות עולמיות**: Apple, Google, Microsoft, Amazon, Tesla, Meta, NVIDIA, Netflix, Adobe, Salesforce
-- **10 מניות ישראליות**: טבע, בזק, מכתשים, דלק, פלקס, מגדל, כלל, איי.די.בי, דיסנט, מנורה
+- ✅ ניהול משתמשים והרשאות
+- ✅ הוספת/עריכת/מחיקת השקעות
+- ✅ חישובי סיכון ורווח
+- ✅ גרפים ותרשימים
+- ✅ ייעוץ בינה מלאכותית (Ollama)
+- ✅ פריסה בענן
+- ✅ מסד נתונים PostgreSQL
 
-## 🔐 אבטחה
+## 🚨 הערות חשובות
 
-- סיסמאות מוצפנות
-- ניהול הרשאות (מנהל/משתמש)
-- הגנה מפני CSRF
-- חיבור מאובטח למסד נתונים
-
-## 🚨 פתרון בעיות
-
-### בעיות נפוצות
-
-1. **פורט תפוס**
-   ```bash
-   # בדיקת פורטים בשימוש
-   lsof -i :8080
-   lsof -i :5432
-   lsof -i :11434
-   ```
-
-2. **בעיות חיבור למסד נתונים**
-   ```bash
-   # בדיקת חיבור
-   docker-compose exec postgres psql -U postgres -d investments
-   ```
-
-3. **בעיות עם Ollama**
-   ```bash
-   # בדיקת מודלים
-   curl http://localhost:11434/api/tags
-   
-   # הורדת מודל
-   docker-compose exec ollama ollama pull llama3.1:8b
-   ```
-
-### לוגים מפורטים
-```bash
-# כל הלוגים
-docker-compose logs
-
-# לוגים של שירות ספציפי
-docker-compose logs flask-app
-```
-
-## 📞 תמיכה
-
-לבעיות או שאלות:
-1. בדוק את הלוגים: `docker-compose logs`
-2. בדוק את הסטטוס: `docker-compose ps`
-3. הפעל מחדש: `docker-compose restart`
-
----
-
-**מערכת ניהול תיק השקעות** - פרויקט סיום פיתוח מערכות ווב 2025
+1. **מסד הנתונים**: חייב להיות PostgreSQL בענן
+2. **Ollama**: אופציונלי - האפליקציה תעבוד גם בלי
+3. **אבטחה**: משתמש admin/admin כברירת מחדל
+4. **נתונים**: האפליקציה תוסיף נתונים לדוגמה אם המסד ריק

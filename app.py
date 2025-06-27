@@ -1285,38 +1285,40 @@ def check_env():
 # מפעילים את האתר
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")
+    
+    # יצירת טבלאות במסד הנתונים
     print("=== יצירת טבלאות במסד הנתונים ===")
     portfolio_model.create_tables()
-    print("=== טבלאות נוצרו בהצלחה ===")
     
-    # הוספת נתונים לדוגמה אם המסד ריק
+    # בדיקת תוכן מסד הנתונים
     print("=== בדיקת תוכן מסד הנתונים ===")
-    try:
-        securities = portfolio_model.get_all_securities()
-        if len(securities) == 0:
-            print("מסד הנתונים ריק, מוסיף נתונים לדוגמה...")
-            sample_securities = [
-                ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-                ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-                ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
-                ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה"),
-                ("מיקרוסופט", 8, 300.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
-                ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה")
-            ]
-            
-            for name, amount, price, industry, variance, security_type in sample_securities:
+    securities = portfolio_model.get_all_securities()
+    if securities:
+        print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
+    else:
+        print("מסד הנתונים ריק, מוסיף נתונים לדוגמה...")
+        # הוספת נתונים לדוגמה רק אם המסד ריק
+        sample_data = [
+            ("אפל", 10, 150.0, "טכנולוגיה", 0.15, "מניה"),
+            ("גוגל", 5, 2800.0, "טכנולוגיה", 0.12, "מניה"),
+            ("אגח ממשלתי", 100, 100.0, "ממשלתי", 0.05, "אגח"),
+            ("טסלה", 3, 800.0, "טכנולוגיה", 0.25, "מניה"),
+            ("מיקרוסופט", 8, 300.0, "טכנולוגיה", 0.18, "מניה"),
+            ("אמזון", 2, 1500.0, "טכנולוגיה", 0.20, "מניה")
+        ]
+        
+        for name, amount, price, industry, variance, security_type in sample_data:
+            try:
                 portfolio_model.add_security(name, amount, price, industry, variance, security_type)
                 print(f"נוסף: {name} - {amount} יחידות ב-{price} ₪")
-            
-            print("נתונים לדוגמה נוספו בהצלחה!")
-        else:
-            print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
-    except Exception as e:
-        print(f"שגיאה בהוספת נתונים לדוגמה: {str(e)}")
+            except Exception as e:
+                print(f"שגיאה בהוספת {name}: {e}")
+        
+        print("נתונים לדוגמה נוספו בהצלחה!")
     
-    # מקבל פורט מהסביבה או משתמש ב-8080 כברירת מחדל
+    # קבלת פורט מהסביבה (עבור Railway/Heroku)
     port = int(os.environ.get('PORT', 8080))
     print(f"=== האפליקציה רצה על פורט {port} ===")
     
-    # הרצה עם host='0.0.0.0' כדי שיהיה נגיש מבחוץ
+    # הפעלת האפליקציה
     app.run(host='0.0.0.0', port=port, debug=False)
