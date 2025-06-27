@@ -1160,6 +1160,162 @@ def debug_info():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/setup-database')
+def setup_database():
+    """נתיב להגדרת מסד הנתונים המלא - יוצר טבלאות ומשתמשים"""
+    print("=== התחלת הגדרת מסד נתונים מלא ===")
+    try:
+        # יצירת טבלאות
+        print("יוצר טבלאות...")
+        portfolio_model.create_tables()
+        print("טבלאות נוצרו בהצלחה")
+        
+        # הוספת משתמשים
+        print("מוסיף משתמשים...")
+        from werkzeug.security import generate_password_hash
+        
+        conn = portfolio_model.get_connection()
+        cursor = conn.cursor()
+        
+        # הוספת משתמש admin
+        admin_password_hash = generate_password_hash('admin123')
+        if portfolio_model.use_postgres:
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, email, role)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    email = EXCLUDED.email,
+                    role = EXCLUDED.role
+            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+        else:
+            cursor.execute("""
+                INSERT OR REPLACE INTO users (username, password_hash, email, role)
+                VALUES (?, ?, ?, ?)
+            """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+        
+        # הוספת משתמש demo
+        demo_password_hash = generate_password_hash('password123')
+        if portfolio_model.use_postgres:
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, email, role)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    email = EXCLUDED.email,
+                    role = EXCLUDED.role
+            """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
+        else:
+            cursor.execute("""
+                INSERT OR REPLACE INTO users (username, password_hash, email, role)
+                VALUES (?, ?, ?, ?)
+            """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
+        
+        conn.commit()
+        conn.close()
+        print("משתמשים נוספו בהצלחה")
+        
+        # הוספת נתוני דוגמה
+        print("מוסיף נתוני דוגמה...")
+        sample_securities = [
+            ("אפל", 10, 150.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("גוגל", 5, 2800.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("אגח ממשלתי", 100, 100.0, "פיננסים", "נמוך", "אגח ממשלתית"),
+            ("טסלה", 3, 800.0, "תחבורה", "גבוה", "מניה רגילה"),
+            ("מיקרוסופט", 8, 300.0, "טכנולוגיה", "גבוה", "מניה רגילה"),
+            ("אמזון", 2, 1500.0, "טכנולוגיה", "גבוה", "מניה רגילה")
+        ]
+        
+        for name, amount, price, industry, variance, security_type in sample_securities:
+            portfolio_model.add_security(name, amount, price, industry, variance, security_type)
+            print(f"נוסף: {name} - {amount} יחידות ב-{price} ₪")
+        
+        print("=== סיום הגדרת מסד נתונים מלא ===")
+        
+        result = f"""
+        <h2>הגדרת מסד נתונים - הצליחה!</h2>
+        <p>המסד הנתונים הוגדר בהצלחה עם כל הטבלאות והנתונים.</p>
+        
+        <h3>מה שנוצר:</h3>
+        <ul>
+            <li><strong>טבלאות:</strong> users, securities, investments</li>
+            <li><strong>משתמשים:</strong> admin, demo_user</li>
+            <li><strong>ניירות ערך:</strong> {len(sample_securities)} מניות ואגרות חוב</li>
+        </ul>
+        
+        <h3>פרטי התחברות:</h3>
+        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin123</p>
+        <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+        
+        <h3>קישורים מהירים:</h3>
+        <p><a href="/login">התחברות למערכת</a></p>
+        <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
+        <p><a href="/">דף הבית</a></p>
+        """
+        
+        return result
+        
+    except Exception as e:
+        print(f"שגיאה בהגדרת מסד נתונים: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <h2>שגיאה בהגדרת מסד נתונים</h2>
+        <p>שגיאה: {str(e)}</p>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
+
+@app.route('/check-env')
+def check_env():
+    """נתיב לבדיקת משתני סביבה מפורטת"""
+    try:
+        import os
+        env_info = {
+            'DATABASE_URL': os.environ.get('DATABASE_URL', 'לא מוגדר'),
+            'PORT': os.environ.get('PORT', 'לא מוגדר'),
+            'OLLAMA_URL': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
+            'FLASK_ENV': os.environ.get('FLASK_ENV', 'לא מוגדר'),
+            'PYTHONPATH': os.environ.get('PYTHONPATH', 'לא מוגדר'),
+            'use_postgres': portfolio_model.use_postgres,
+            'db_url': portfolio_model.db_url
+        }
+        
+        # בדיקת חיבור למסד
+        try:
+            conn = portfolio_model.get_connection()
+            conn.close()
+            env_info['database_connection'] = 'עובד'
+        except Exception as e:
+            env_info['database_connection'] = f'שגיאה: {str(e)}'
+        
+        html = """
+        <h2>בדיקת משתני סביבה</h2>
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+            <tr><th>משתנה</th><th>ערך</th></tr>
+        """
+        
+        for key, value in env_info.items():
+            html += f"<tr><td>{key}</td><td>{value}</td></tr>"
+        
+        html += """
+        </table>
+        
+        <h3>המלצות:</h3>
+        <ul>
+            <li>אם DATABASE_URL לא מוגדר - הגדר אותו לכתובת PostgreSQL</li>
+            <li>אם database_connection לא עובד - בדוק את כתובת ה-DATABASE_URL</li>
+        </ul>
+        
+        <h3>פעולות:</h3>
+        <p><a href="/setup-database">הגדר מסד נתונים מלא</a></p>
+        <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+        """
+        
+        return html
+        
+    except Exception as e:
+        return f"שגיאה: {str(e)}"
+
 # מפעילים את האתר
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")
