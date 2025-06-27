@@ -2,7 +2,7 @@
 
 מערכת Flask לניהול תיק השקעות עם בינה מלאכותית (Ollama) ומסד נתונים PostgreSQL.
 
-## 🚀 פריסה בענן - Railway
+## פריסה בענן - Railway
 
 ### הוראות פריסה ל-Railway
 
@@ -30,7 +30,7 @@
 # בחר אפשרות 1 (Railway)
 ```
 
-## 🏃‍♂️ הרצה מקומית
+## הרצה מקומית
 
 ### דרישות מקדימות
 
@@ -53,7 +53,7 @@
 
 3. **הגדר משתני סביבה**:
    ```bash
-   export DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+   export DATABASE_URL="postgresql://username:password@host:port/database"
    export PORT=4000
    export OLLAMA_URL="http://localhost:11434"  # אופציונלי
    ```
@@ -66,86 +66,87 @@
 ### הרצה עם Docker
 
 ```bash
-# הרצה עם Docker Compose (כולל Ollama)
-docker-compose up
+# הרצת האפליקציה בלבד
+docker-compose up web
 
-# או רק האפליקציה
-docker build -t portfolio-app .
-docker run -p 4000:4000 -e DATABASE_URL="your-postgres-url" portfolio-app
+# הרצת האפליקציה + Ollama
+docker-compose up
 ```
 
-## 📊 תכונות
+## תכונות
 
-- **ניהול תיק השקעות**: הוספה, עריכה ומחיקה של השקעות
-- **ניתוח סיכונים**: חישוב וריאנס וסטיית תקן
-- **בינה מלאכותית**: ייעוץ השקעות עם Ollama
-- **ממשק משתמש**: דפי אינטרנט נוחים לשימוש
-- **מסד נתונים**: PostgreSQL לעמידות ומהירות
+### ניהול תיק השקעות
+- הוספת מניות ואגרות חוב
+- מעקב אחר מחירים וערכים
+- חישוב סיכונים
+- גרפים ויזואליים
 
-## 🗄️ מבנה מסד הנתונים
+### בינה מלאכותית
+- ייעוץ השקעות חכם
+- ניתוח סיכונים
+- המלצות מותאמות אישית
 
-### טבלת משתמשים (users)
-- `id`: מזהה ייחודי
-- `username`: שם משתמש
-- `password_hash`: סיסמה מוצפנת
+### אבטחה
+- מערכת כניסה מאובטחת
+- הרשאות משתמשים
+- הצפנת סיסמאות
 
-### טבלת השקעות (investments)
-- `id`: מזהה ייחודי
-- `name`: שם ההשקעה
-- `amount`: כמות יחידות
-- `price`: מחיר ליחידה
-- `industry`: ענף
-- `variance`: וריאנס
-- `security_type`: סוג נייר ערך
+### ממשק משתמש
+- עיצוב מודרני וידידותי
+- תמיכה מלאה בעברית
+- תצוגה מותאמת למובייל
 
-## 🔧 פיתוח
+## פיתוח
 
 ### מבנה הפרויקט
 
 ```
 tomerINV/
-├── app.py                 # האפליקציה הראשית
-├── dbmodel.py            # מודל מסד הנתונים
-├── ollamamodel.py        # מודל AI
-├── templates/            # תבניות HTML
-├── static/               # קבצים סטטיים
-├── requirements.txt      # תלויות Python
-├── Dockerfile           # קונפיגורציה ל-Docker
-├── docker-compose.yml   # קונפיגורציה ל-Docker Compose
-└── railway.json         # קונפיגורציה ל-Railway
+├── app.py              # האפליקציה הראשית
+├── dbmodel.py          # מודל מסד הנתונים
+├── ollamamodel.py      # מודל בינה מלאכותית
+├── templates/          # תבניות HTML
+├── requirements.txt    # תלויות Python
+├── Dockerfile         # קונפיגורציה ל-Docker
+└── docker-compose.yml # קונפיגורציה ל-Docker Compose
 ```
 
 ### הוספת תכונות חדשות
 
-1. **הוסף נתיב חדש ב-`app.py`**
-2. **צור תבנית HTML ב-`templates/`**
-3. **עדכן את מודל הנתונים ב-`dbmodel.py` אם נדרש**
-4. **בדוק שהכל עובד מקומית**
-5. **דחוף ל-Git ו-Railway יעדכן אוטומטית**
+1. **הוסף נתיב חדש ב-app.py**:
+   ```python
+   @app.route('/new-feature')
+   def new_feature():
+       return render_template('new_feature.html')
+   ```
 
-## 🆘 פתרון בעיות
+2. **צור תבנית HTML**:
+   ```html
+   <!-- templates/new_feature.html -->
+   {% extends "base.html" %}
+   {% block content %}
+   <!-- התוכן שלך כאן -->
+   {% endblock %}
+   ```
 
-### בעיות נפוצות
+### בדיקות
 
-**האפליקציה לא מתחברת למסד הנתונים**:
-- ודא ש-`DATABASE_URL` מוגדר נכון
-- בדוק שהמסד זמין ונגיש
+```bash
+# בדיקת חיבור למסד נתונים
+curl http://localhost:4000/health
 
-**Ollama לא עובד**:
-- ודא ש-Ollama פועל על `localhost:11434`
-- או הגדר `OLLAMA_URL` לכתובת הנכונה
+# בדיקת חיבור ל-Ollama
+curl http://localhost:4000/ollama-test
+```
 
-**האפליקציה לא נפתחת**:
-- בדוק שהפורט פנוי
-- נסה פורט אחר עם `export PORT=4001`
-
-## 📞 תמיכה
+## תמיכה
 
 אם יש לך בעיות או שאלות:
-1. בדוק את הלוגים ב-Railway
-2. בדוק את משתני הסביבה
-3. ודא שכל התלויות מותקנות
+1. בדוק את הלוגים של האפליקציה
+2. וודא שמסד הנתונים פועל
+3. בדוק את משתני הסביבה
+4. פתח issue ב-GitHub
 
----
+## רישיון
 
-**מערכת ניהול תיק השקעות** - פותח עם ❤️ ב-Python ו-Flask
+פרויקט זה מוגן תחת רישיון MIT.
