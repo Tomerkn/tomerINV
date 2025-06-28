@@ -457,6 +457,34 @@ def advice():
 def risk():
     try:
         portfolio_data = portfolio_model.get_all_securities()
+        
+        # חישוב הערך הכולל ואחוזים לכל נייר ערך
+        total_value = 0
+        for security in portfolio_data:
+            security['value'] = security['price'] * security['amount']
+            total_value += security['value']
+        
+        # חישוב אחוזים ורמת סיכון
+        risk_levels = {
+            'טכנולוגיה': 6,
+            'תחבורה': 5,
+            'אנרגיה': 4,
+            'בריאות': 4,
+            'תעשייה': 3,
+            'פיננסים': 3,
+            'נדלן': 2,
+            'צריכה פרטית': 1
+        }
+        
+        for security in portfolio_data:
+            if total_value > 0:
+                security['percentage'] = (security['value'] / total_value) * 100
+            else:
+                security['percentage'] = 0
+            
+            # הוספת רמת סיכון לפי ענף
+            security['risk_level'] = risk_levels.get(security.get('industry', ''), 3)
+        
         return render_template('risk.html', portfolio=portfolio_data)
     except Exception as e:
         flash(f'שגיאה בטעינת ניתוח סיכונים: {str(e)}', 'danger')
@@ -467,7 +495,21 @@ def risk():
 def graph():
     try:
         portfolio_data = portfolio_model.get_all_securities()
-        return render_template('graph.html', portfolio=portfolio_data)
+        
+        # חישוב הערך הכולל ואחוזים לכל נייר ערך
+        total_value = 0
+        for security in portfolio_data:
+            security['value'] = security['price'] * security['amount']
+            total_value += security['value']
+        
+        # חישוב אחוזים
+        for security in portfolio_data:
+            if total_value > 0:
+                security['percentage'] = (security['value'] / total_value) * 100
+            else:
+                security['percentage'] = 0
+        
+        return render_template('graph.html', portfolio=portfolio_data, total_value=total_value)
     except Exception as e:
         flash(f'שגיאה בטעינת גרפים: {str(e)}', 'danger')
         return redirect(url_for('index'))
@@ -1545,6 +1587,23 @@ def initialize_app():
     print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
     
     print("=== סיום אתחול האפליקציה ===")
+
+# הגדרת פונט שתומך בעברית
+plt.rcParams['font.family'] = ['Arial']  # הגדרת פונט שתומך בעברית
+
+# הוספת פילטר nl2br עבור Jinja2
+def nl2br(value):
+    """המרת שורות חדשות ל-<br> tags"""
+    if value:
+        return value.replace('\n', '<br>')
+    return value
+
+app.jinja_env.filters['nl2br'] = nl2br
+
+@app.route('/favicon.ico')
+def favicon():
+    """מחזיר favicon ריק כדי למנוע שגיאות 404"""
+    return '', 204
 
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")

@@ -16,7 +16,7 @@
                 <div class="alert alert-info">
                     <h6><i class="bi bi-lightbulb"></i> ייעוץ מקצועי:</h6>
                     <div class="mt-3">
-                        {{ advice | nl2br }}
+                        {{ advice | nl2br | safe }}
                     </div>
                 </div>
                 {% else %}

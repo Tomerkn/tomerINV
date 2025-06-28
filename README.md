@@ -47,9 +47,9 @@
    ```
 
 2. **התקן תלויות**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 3. **הגדר משתני סביבה**:
    ```bash
@@ -59,9 +59,9 @@
    ```
 
 4. **הרץ את האפליקציה**:
-   ```bash
-   python app.py
-   ```
+```bash
+python app.py
+```
 
 ### הרצה עם Docker
 
