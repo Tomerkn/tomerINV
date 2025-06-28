@@ -19,9 +19,11 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         # איזה מודל להשתמש בו (phi3:mini זה מודל קטן מאוד שמתאים לענן)
         self.model_name = 'phi3:mini'
         print(f"מודל שנבחר: {self.model_name}")
-        # בודק אם Ollama זמין
+        # בודק אם Ollama זמין - אם לא, נשתמש ב-fallback
         print("בודק זמינות Ollama...")
         self.ollama_available = self._check_ollama_availability()
+        if not self.ollama_available:
+            print("Ollama לא זמין - נשתמש בייעוץ פשוט")
         print(f"אתחול מחלקה לחיבור ל-AI - Ollama זמין: {self.ollama_available}")
         print("=== סיום אתחול AI_Agent ===")
     
@@ -30,7 +32,7 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         try:
             print(f"מנסה להתחבר ל-Ollama בכתובת: {self.ollama_url}")
             # מנסה להתחבר לשרת Ollama
-            response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=3)
             print(f"תגובה מ-Ollama: {response.status_code}")
             if response.status_code == 200:
                 print("Ollama זמין ופועל!")
@@ -39,10 +41,10 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
                 print(f"Ollama הגיב עם קוד שגיאה: {response.status_code}")
                 return False
         except requests.exceptions.ConnectionError as e:
-            print(f"שגיאת חיבור ל-Ollama: {str(e)}")
+            print(f"שגיאת חיבור ל-Ollama: לא ניתן להתחבר")
             return False
         except requests.exceptions.Timeout as e:
-            print(f"פסק זמן בחיבור ל-Ollama: {str(e)}")
+            print(f"פסק זמן בחיבור ל-Ollama: החיבור איטי מדי")
             return False
         except Exception as e:
             print(f"שגיאה כללית בבדיקת Ollama: {str(e)}")
