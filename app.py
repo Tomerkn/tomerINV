@@ -1011,14 +1011,12 @@ print("=== סיום טעינת האפליקציה ===")
 def health_check():
     """נתיב לבדיקת בריאות האפליקציה - נדרש ל-Railway"""
     try:
-        # בדיקה בסיסית שהאפליקציה עובדת
+        # בדיקה בסיסית שהאפליקציה עובדת - ללא חיבור למסד נתונים
         return {
             'status': 'healthy',
             'message': 'Application is running',
             'timestamp': datetime.now().isoformat(),
-            'port': PORT,
-            'database_url_configured': bool(DATABASE_URL),
-            'ollama_url_configured': bool(OLLAMA_URL)
+            'port': PORT
         }, 200
     except Exception as e:
         return {
