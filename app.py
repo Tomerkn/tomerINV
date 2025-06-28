@@ -1278,6 +1278,87 @@ def check_env():
     except Exception as e:
         return f"שגיאה: {str(e)}"
 
+@app.route('/ollama-status')
+def ollama_status():
+    """נתיב לבדיקת סטטוס Ollama"""
+    try:
+        import requests
+        import os
+        
+        ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        
+        # בדיקת זמינות Ollama
+        try:
+            response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                model_names = [model.get('name', '') for model in models]
+                
+                html = f"""
+                <h2>סטטוס Ollama AI</h2>
+                <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3 style="color: #155724; margin: 0;">✅ Ollama פועל וזמין</h3>
+                    <p><strong>כתובת:</strong> {ollama_url}</p>
+                    <p><strong>מודלים זמינים:</strong> {len(models)}</p>
+                </div>
+                
+                <h3>מודלים מותקנים:</h3>
+                <ul>
+                """
+                
+                for model_name in model_names:
+                    html += f"<li>{model_name}</li>"
+                
+                html += """
+                </ul>
+                
+                <h3>בדיקות נוספות:</h3>
+                <p><a href="/advice">בדוק ייעוץ השקעות עם AI</a></p>
+                <p><a href="/risk">בדוק ניתוח סיכונים עם AI</a></p>
+                <p><a href="/health">בדיקת בריאות כללית</a></p>
+                """
+                
+                return html
+            else:
+                return f"""
+                <h2>סטטוס Ollama AI</h2>
+                <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3 style="color: #721c24; margin: 0;">❌ Ollama לא זמין</h3>
+                    <p><strong>כתובת:</strong> {ollama_url}</p>
+                    <p><strong>קוד תגובה:</strong> {response.status_code}</p>
+                </div>
+                
+                <h3>פתרון בעיות:</h3>
+                <ul>
+                    <li>וודא ש-Ollama רץ</li>
+                    <li>בדוק את משתנה הסביבה OLLAMA_URL</li>
+                    <li>בדוק את הלוגים של שירות Ollama</li>
+                </ul>
+                """
+                
+        except requests.exceptions.RequestException as e:
+            return f"""
+            <h2>סטטוס Ollama AI</h2>
+            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                <h3 style="color: #721c24; margin: 0;">❌ שגיאה בחיבור ל-Ollama</h3>
+                <p><strong>כתובת:</strong> {ollama_url}</p>
+                <p><strong>שגיאה:</strong> {str(e)}</p>
+            </div>
+            
+            <h3>פתרון בעיות:</h3>
+            <ul>
+                <li>וודא ש-Ollama רץ</li>
+                <li>בדוק את משתנה הסביבה OLLAMA_URL</li>
+                <li>בדוק את הלוגים של שירות Ollama</li>
+            </ul>
+            """
+            
+    except Exception as e:
+        return f"""
+        <h2>שגיאה בבדיקת Ollama</h2>
+        <p>שגיאה: {str(e)}</p>
+        """
+
 # מפעילים את האתר
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")

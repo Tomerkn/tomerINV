@@ -5,47 +5,49 @@
 version: '3.8'
 
 services:
-  # שירות 1: אפליקציית Flask
-  flaskapp:
+  # Web Application
+  app:
     build: .
-    container_name: flaskapp
-    environment:
-      - DATABASE_URL=postgresql://postgres:WaPnQYjKJlhQJKCoNYbZxQRldTRJmTWW@shortline.proxy.rlwy.net:23148/railway
-      - OLLAMA_URL=http://ollama:11434
-      - PORT=4000
     ports:
-      - "4000:4000"
+      - "${PORT:-8080}:8080"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - OLLAMA_URL=http://ollama:11434
+      - PORT=8080
     depends_on:
+      - postgres
       - ollama
+    networks:
+      - app-network
 
-  # שירות 2: מסד נתונים PostgreSQL
+  # PostgreSQL Database
   postgres:
     image: postgres:15
-    container_name: inv_db_Postgres
     environment:
-      - POSTGRES_DB=investments
+      - POSTGRES_DB=railway
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - investment-network
-    restart: unless-stopped
+      - app-network
 
-  # שירות 3: שרת Ollama לבינה מלאכותית
+  # Ollama AI Service
   ollama:
-    image: ollama/ollama
-    container_name: ollama
+    image: ollama/ollama:latest
     ports:
       - "11434:11434"
-    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
   ollama_data:
 
 networks:
-  investment-network:
+  app-network:
     driver: bridge 
