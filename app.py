@@ -1699,6 +1699,8 @@ app.jinja_env.filters['nl2br'] = nl2br
 
 @app.route('/favicon.ico')
 def favicon():
+    return Response(status=204)  # No content response for favicon
+
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")
     
