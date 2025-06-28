@@ -89,8 +89,6 @@ except Exception as e:
 
 print("=== התחלת טעינת האפליקציה ===")
 
-plt.rcParams['font.family'] = ['Arial']  # הגדרת פונט שתומך בעברית
-
 # הוספת לוגים מפורטים
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1262,6 +1260,7 @@ def setup_database():
         existing_securities = portfolio_model.get_all_securities()
         if len(existing_securities) > 0:
             print(f"כבר יש {len(existing_securities)} ניירות ערך במסד הנתונים")
+            print("=== סיום הגדרת מסד נתונים מלא ===")
             result = f"""
             <h2>הגדרת מסד נתונים - הושלמה!</h2>
             <p>המסד הנתונים כבר מכיל {len(existing_securities)} ניירות ערך.</p>
