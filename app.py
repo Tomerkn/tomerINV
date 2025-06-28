@@ -336,7 +336,7 @@ def add_security():  # פונקציה להוספת נייר ערך חדש לתי
             'price': 0  # מחיר התחלתי (יתעדכן אחר כך)
         }
         try:
-            result = portfolio_model.add_security(security['name'], security['amount'], form.industry.data, form.variance.data, form.security_type.data)  # מוסיף את נייר הערך לתיק
+            result = portfolio_model.add_security(security['name'], security['amount'], security['price'], form.industry.data, form.variance.data, form.security_type.data)  # מוסיף את נייר הערך לתיק
             if result:
                 flash('נייר הערך נוסף בהצלחה!', 'success')  # מציג הודעת הצלחה
                 return redirect(url_for('portfolio'))  # מפנה לדף התיק

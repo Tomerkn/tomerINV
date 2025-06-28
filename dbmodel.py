@@ -502,12 +502,19 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
 
     def get_connection(self):
         """יוצר חיבור למסד הנתונים"""
+        print("=== התחלת get_connection ===")
         if self.use_postgres:
+            print(f"מתחבר ל-PostgreSQL: {self.DATABASE_URL}")
             import psycopg2
-            return psycopg2.connect(self.DATABASE_URL)
+            conn = psycopg2.connect(self.DATABASE_URL)
+            print("חיבור ל-PostgreSQL הצליח")
+            return conn
         else:
+            print(f"מתחבר ל-SQLite: {self.db_file}")
             import sqlite3
-            return sqlite3.connect(self.db_file)
+            conn = sqlite3.connect(self.db_file)
+            print("חיבור ל-SQLite הצליח")
+            return conn
 
     @property
     def db_url(self):
