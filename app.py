@@ -570,11 +570,6 @@ def generate_pie_chart():
         
         return Response(img.getvalue(), mimetype='image/png')
 
-# אתחול מערכת הבינה המלאכותית כשהאתר מתחיל לרוץ
-print("אתחול מחלקה לחיבור ל-AI")  # הודעה שהבינה המלאכותית מתחילה
-ai_agent = AI_Agent()  # יוצר את הבינה המלאכותית שתייעץ למשתמשים
-print("=== AI Agent נוצר בהצלחה ===")
-
 # טיפול שגיאות כללי
 @app.errorhandler(500)
 def internal_error(error):
