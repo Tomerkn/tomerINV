@@ -15,6 +15,11 @@
                         {{ form.hidden_tag() }}
                         
                         <div class="form-group mb-3">
+                            {{ form.stock_dropdown.label(class="form-label") }}
+                            {{ form.stock_dropdown(class="form-control") }}
+                        </div>
+                        
+                        <div class="form-group mb-3">
                             {{ form.name.label(class="form-label") }}
                             {{ form.name(class="form-control") }}
                         </div>
@@ -49,4 +54,21 @@
         </div>
     </div>
 </div>
+
+<script>
+// JavaScript למלא אוטומטית את שדה השם כשנבחרת מניה מהרשימה
+document.addEventListener('DOMContentLoaded', function() {
+    const stockDropdown = document.getElementById('stock_dropdown');
+    const nameField = document.getElementById('name');
+    
+    if (stockDropdown && nameField) {
+        stockDropdown.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.value !== '') {
+                nameField.value = selectedOption.text;
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

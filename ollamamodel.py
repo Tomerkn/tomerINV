@@ -12,15 +12,12 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
     def __init__(self):
         """פה אני מתחיל את הסוכן ומתחבר לבינה המלאכותית"""
         print("=== התחלת אתחול AI_Agent ===")
-        # כתובת של Ollama
-        self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
-        print(f"OLLAMA_URL מהסביבה: {os.environ.get('OLLAMA_URL', 'לא מוגדר')}")
-        print(f"משתמש בכתובת: {self.ollama_url}")
-        # איזה מודל להשתמש בו (phi3:mini זה מודל קטן מאוד שמתאים לענן)
+        self.ollama_url = os.environ.get('OLLAMA_URL')
+        if not self.ollama_url:
+            raise Exception("לא מוגדר OLLAMA_URL! חובה להגדיר את כתובת Ollama בענן במשתני הסביבה.")
+        print(f"OLLAMA_URL מהסביבה: {self.ollama_url}")
         self.model_name = 'phi3:mini'
         print(f"מודל שנבחר: {self.model_name}")
-        # בודק אם Ollama זמין - אם לא, נשתמש ב-fallback
-        print("בודק זמינות Ollama...")
         self.ollama_available = self._check_ollama_availability()
         if not self.ollama_available:
             print("Ollama לא זמין - נשתמש בייעוץ פשוט")
@@ -173,30 +170,22 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
             return False
 
     def _send_to_ollama(self, prompt):
-        """פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה"""
+        """פה אני שולח את ההודעה לבינה המלאכותית בענן ומקבל תשובה"""
         try:
-            # וודא שהמודל זמין
-            if not self._ensure_model_available():
-                raise Exception("לא הצלחתי להוריד את המודל")
-            
-            # פה אני מתחבר ל-Ollama ושולח את ההודעה
-            client = ollama.Client(host=self.ollama_url)
-            response = client.chat(
-                model=self.model_name,
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': prompt
-                    }
+            url = f"{self.ollama_url}/api/chat"
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "user", "content": prompt}
                 ]
-            )
-            
-            # פה אני מחזיר את התשובה
-            return response['message']['content']
-            
-        except Exception as e:
-            # אם יש בעיה עם החיבור, אני מחזיר הודעת שגיאה
-            raise Exception(f"בעיה בחיבור לבינה המלאכותית: {str(e)}")
+            }
+            response = requests.post(url, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            # Ollama בענן מחזיר את התשובה תחת data['message']['content']
+            return data["message"]["content"]
+        except Exception as exc:
+            raise Exception(f"בעיה בחיבור לבינה המלאכותית בענן: {exc}")
     
     def _format_advice(self, raw_advice):
         """פה אני מעצב את הייעוץ בצורה יפה וקריאה"""

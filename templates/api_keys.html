@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}מפתחות API - מערכת ניהול השקעות{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>מפתחות Alpha Vantage API</h2>
+    <div>
+        <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> חזרה לתיק
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- מידע כללי -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">מידע כללי</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>סה"כ מפתחות:</strong></td>
+                        <td>{{ total_keys }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>מפתח נוכחי:</strong></td>
+                        <td>מספר {{ current_key_index + 1 }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>מפתח בשימוש:</strong></td>
+                        <td><code>{{ current_key }}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>מפתחות זמינים:</strong></td>
+                        <td>{{ available_keys }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- איך זה עובד -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">איך זה עובד?</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">המערכת משתמשת במספר מפתחות API של Alpha Vantage:</p>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check-circle text-success"></i> כל מפתח מאפשר 25 בקשות בדקה ו-500 בקשות ביום</li>
+                    <li><i class="bi bi-arrow-repeat text-primary"></i> כשמפתח מגיע למגבלה, המערכת עוברת אוטומטית למפתח הבא</li>
+                    <li><i class="bi bi-speedometer2 text-info"></i> זה מאפשר לעדכן יותר מחירים מבלי להיתקע במגבלות</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- פעולות ניהול -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">פעולות ניהול</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2 d-md-flex">
+                    <a href="{{ url_for('reset_api_rotation') }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise"></i> אפס רוטציה למפתח הראשון
+                    </a>
+                    <a href="{{ url_for('test_current_api_key') }}" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> בדוק מפתח נוכחי
+                    </a>
+                    <a href="{{ url_for('update_all_prices') }}" class="btn btn-warning">
+                        <i class="bi bi-currency-dollar"></i> עדכן כל המחירים
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- הוראות הגדרה -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">הוראות הגדרה</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">כדי להוסיף מפתחות נוספים:</p>
+                <ol>
+                    <li>הירשם ל-<a href="https://www.alphavantage.co/support/#api-key" target="_blank" class="text-decoration-none">Alpha Vantage <i class="bi bi-box-arrow-up-right"></i></a> וקבל מפתח חינמי</li>
+                    <li>עדכן את הרשימה <code>API_KEYS</code> בקובץ <code>dbmodel.py</code></li>
+                    <li>החלף את <code>YOUR_SECOND_API_KEY</code> במפתח האמיתי שלך</li>
+                    <li>הפעל מחדש את האפליקציה</li>
+                </ol>
+                
+                <div class="alert alert-info mt-3" role="alert">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>טיפ:</strong> מומלץ להשיג לפחות 3 מפתחות כדי להבטיח עדכון מחירים רציף ללא הפרעות.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

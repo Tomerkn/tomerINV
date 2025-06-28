@@ -125,41 +125,93 @@ class Bond(Security):  # פה אני יוצר מחלקה לאג"חים – כמ�
 class Broker:  # מחלקה שמטפלת בקבלת מחירי מניות מהאינטרנט
     """מחלקה שמטפלת בקבלת מחירי מניות מהאינטרנט"""
     
-    # מפתח API של Alpha Vantage לקבלת מידע על מחירי מניות
-    API_KEY = "451FPPPSEOOZIDV4"
+    # רשימת מפתחות API של Alpha Vantage - כל פעם שנגמרות הפניות עוברים למפתח הבא
+    API_KEYS = [
+        "87RYKHP1CUPBGWY1",      # מפתח ראשי
+        "451FPPPSEOOZIDV4",      # מפתח שני למטרת בדיקות עקב הגבלת פניות
+        "XX4SBD1SXLFLUSV2",      # מפתח שלישי למטרת בדיקות עקב הגבלת פניות
+    ]
+    
+    # אינדקס המפתח הנוכחי שבשימוש
+    current_key_index = 0
+    
     # כתובת בסיס של שירות Alpha Vantage לקבלת נתוני מניות
     BASE_URL = "https://www.alphavantage.co/query"
     
+    @classmethod
+    def get_current_api_key(cls):
+        """מחזיר את המפתח הנוכחי שבשימוש"""
+        return cls.API_KEYS[cls.current_key_index]
+    
+    @classmethod
+    def rotate_api_key(cls):
+        """עובר למפתח הבא ברשימה (אם נגמרו הפניות במפתח הנוכחי)"""
+        cls.current_key_index = (cls.current_key_index + 1) % len(cls.API_KEYS)
+        print(f"עברתי למפתח API מספר {cls.current_key_index + 1}")
+        return cls.get_current_api_key()
+    
+    @classmethod
+    def is_rate_limit_error(cls, data):
+        """בודק אם השגיאה היא בגלל מגבלת פניות"""
+        if isinstance(data, dict):
+            error_message = data.get('Error Message', '').lower()
+            note = data.get('Note', '').lower()
+            return ('rate limit' in error_message or 
+                   'call frequency' in error_message or
+                   'api call frequency' in note or
+                   'thank you for using alpha vantage' in note)
+        return False
+    
     @staticmethod  # פונקציה סטטית שלא צריכה מופע של המחלקה
     def update_price(symbol):  # פונקציה לקבלת מחיר עדכני של מניה
-        """קבלת מחיר עדכני של מניה מ-Alpha Vantage API"""
-        # יצירת רשימה של פרמטרים לשליחה לשירות
-        params = {
-            'function': 'GLOBAL_QUOTE',  # סוג הבקשה - קבלת מחיר נוכחי
-            'symbol': symbol,  # סמל המניה (לדוגמה: AAPL, TSLA)
-            'apikey': Broker.API_KEY  # המפתח שלנו לגישה לשירות
-        }
+        """קבלת מחיר עדכני של מניה מ-Alpha Vantage API עם תמיכה במספר מפתחות"""
         
-        try:  # מנסה לבצע את הבקשה
-            # שולח בקשה HTTP לשירות Alpha Vantage
-            response = requests.get(Broker.BASE_URL, params=params)
-            # הופך את התשובה מ-JSON לאובייקט פייתון
-            data = response.json()
+        # מנסה עם כל המפתחות אחד אחרי השני
+        for attempt in range(len(Broker.API_KEYS)):
+            current_key = Broker.get_current_api_key()
             
-            # בודק אם יש את המידע הדרוש בתשובה
-            if 'Global Quote' in data:
-                # מחלץ את המחיר הנוכחי מהתשובה
-                current_price = data['Global Quote']['05. price']
-                # ממיר מדולר לשקל
-                ils_price = float(current_price) * USD_TO_ILS_RATE
-                return ils_price  # מחזיר את המחיר בשקלים
-            else:  # אם אין מידע על המניה
-                print(f"לא נמצא מידע על {symbol}")  # מדפיס הודעת שגיאה
-                return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
+            # יצירת רשימה של פרמטרים לשליחה לשירות
+            params = {
+                'function': 'GLOBAL_QUOTE',  # סוג הבקשה - קבלת מחיר נוכחי
+                'symbol': symbol,  # סמל המניה (לדוגמה: AAPL, TSLA)
+                'apikey': current_key  # המפתח הנוכחי לגישה לשירות
+            }
+            
+            try:  # מנסה לבצע את הבקשה
+                print(f"מנסה לקבל מחיר עבור {symbol} עם מפתח {Broker.current_key_index + 1}")
                 
-        except Exception as e:  # אם יש שגיאה בתקשורת עם השירות
-            print(f"שגיאה בקבלת מחיר עבור {symbol}: {e}")  # מדפיס את השגיאה
-            return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
+                # שולח בקשה HTTP לשירות Alpha Vantage
+                response = requests.get(Broker.BASE_URL, params=params)
+                # הופך את התשובה מ-JSON לאובייקט פייתון
+                data = response.json()
+                
+                # בודק אם זה שגיאת מגבלת פניות
+                if Broker.is_rate_limit_error(data):
+                    print(f"הגעתי למגבלת הפניות במפתח {Broker.current_key_index + 1}, עובר למפתח הבא")
+                    Broker.rotate_api_key()
+                    continue  # מנסה עם המפתח הבא
+                
+                # בודק אם יש את המידע הדרוש בתשובה
+                if 'Global Quote' in data:
+                    # מחלץ את המחיר הנוכחי מהתשובה
+                    current_price = data['Global Quote']['05. price']
+                    # ממיר מדולר לשקל
+                    ils_price = float(current_price) * USD_TO_ILS_RATE
+                    print(f"קיבלתי מחיר עבור {symbol}: ${current_price} = ₪{ils_price:.2f}")
+                    return ils_price  # מחזיר את המחיר בשקלים
+                else:  # אם אין מידע על המניה
+                    print(f"לא נמצא מידע על {symbol}")  # מדפיס הודעת שגיאה
+                    return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
+                    
+            except Exception as e:  # אם יש שגיאה בתקשורת עם השירות
+                print(f"שגיאה בקבלת מחיר עבור {symbol} עם מפתח {Broker.current_key_index + 1}: {e}")
+                if attempt < len(Broker.API_KEYS) - 1:  # אם יש עוד מפתחות לנסות
+                    Broker.rotate_api_key()
+                    continue
+        
+        # אם כל המפתחות נכשלו
+        print(f"כל המפתחות נכשלו עבור {symbol}, מחזיר מחיר ברירת מחדל")
+        return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
 
     @staticmethod
     def get_stock_price(symbol):
@@ -177,10 +229,10 @@ class Broker:  # מחלקה שמטפלת בקבלת מחירי מניות מהא
 
     @staticmethod
     def get_multiple_prices(symbols):
-        """מביאה מחירים של כמה מניות בבת אחת"""
+        """מביאה מחירים של כמה מניות בבת אחת עם תמיכה במספר מפתחות"""
         prices = {}
         for symbol in symbols:
-            price = Broker.get_stock_price(symbol)  # מביא מחיר לכל מניה
+            price = Broker.update_price(symbol)  # משתמש בפונקציה המעודכנת
             if price is not None:
                 prices[symbol] = price
             time.sleep(0.1)  # מחכה קצת בין בקשות (לא לעבור על מגבלות)
@@ -217,6 +269,22 @@ class Broker:  # מחלקה שמטפלת בקבלת מחירי מניות מהא
         except Exception as e:
             print(f'בעיה עם {symbol}: {e}')
             return None
+
+    @classmethod
+    def get_api_keys_status(cls):
+        """מחזיר מידע על מצב המפתחות"""
+        return {
+            'total_keys': len(cls.API_KEYS),
+            'current_key_index': cls.current_key_index,
+            'current_key': cls.get_current_api_key()[:8] + "...",  # מציג רק חלק מהמפתח
+            'available_keys': len(cls.API_KEYS)
+        }
+
+    @classmethod
+    def reset_key_rotation(cls):
+        """מאפס את הרוטציה למפתח הראשון"""
+        cls.current_key_index = 0
+        print("אופסתי את הרוטציה למפתח הראשון")
 
 
 class Portfolio:  # פה אני יוצר מחלקה לתיק השקעות – כמו תיק עם כל הניירות ערך
@@ -485,11 +553,12 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
     """פה אני שומר את כל המידע של התיק – מניות, אג"חים, מחירים, כמויות וכו'"""
 
     def __init__(self):
-        self.DATABASE_URL = os.environ.get('DATABASE_URL')
-        print("=== התחלת יצירת PortfolioModel ===")
-        print(f"DATABASE_URL מהסביבה: {self.DATABASE_URL}")
+        self.database_url = os.environ.get('DATABASE_URL')
+        if not self.database_url:
+            raise Exception("לא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.")
+        print(f"DATABASE_URL מהסביבה: {self.database_url}")
         
-        if self.DATABASE_URL:
+        if self.database_url:
             print("משתמש ב-PostgreSQL בענן")
             self.use_postgres = True
         else:
@@ -504,9 +573,9 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         """יוצר חיבור למסד הנתונים"""
         print("=== התחלת get_connection ===")
         if self.use_postgres:
-            print(f"מתחבר ל-PostgreSQL: {self.DATABASE_URL}")
+            print(f"מתחבר ל-PostgreSQL: {self.database_url}")
             import psycopg2
-            conn = psycopg2.connect(self.DATABASE_URL)
+            conn = psycopg2.connect(self.database_url)
             print("חיבור ל-PostgreSQL הצליח")
             return conn
         else:
@@ -519,7 +588,7 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
     @property
     def db_url(self):
         """מחזיר את כתובת מסד הנתונים"""
-        return self.DATABASE_URL if self.use_postgres else self.db_file
+        return self.database_url if self.use_postgres else self.db_file
 
     def get_connection_info(self):
         """מחזיר מידע על החיבור למסד הנתונים"""
@@ -612,8 +681,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            placeholder = '%s' if self.use_postgres else '?'
-            cursor.execute(f'SELECT id, username, password_hash, email, role FROM users WHERE id = {placeholder}', (user_id,))
+            if self.use_postgres:
+                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = %s', (user_id,))
+            else:
+                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = ?', (user_id,))
             user = cursor.fetchone()
             conn.close()
             
@@ -636,8 +707,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            placeholder = '%s' if self.use_postgres else '?'
-            cursor.execute(f'SELECT id, username, password_hash, email, role FROM users WHERE username = {placeholder}', (username,))
+            if self.use_postgres:
+                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = %s', (username,))
+            else:
+                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = ?', (username,))
             user = cursor.fetchone()
             conn.close()
             
@@ -660,11 +733,16 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            placeholder = '%s' if self.use_postgres else '?'
-            cursor.execute(f'''
-                INSERT INTO users (username, password_hash, email)
-                VALUES ({placeholder}, {placeholder}, {placeholder})
-            ''', (username, password, email))
+            if self.use_postgres:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email)
+                    VALUES (%s, %s, %s)
+                ''', (username, password, email))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email)
+                    VALUES (?, ?, ?)
+                ''', (username, password, email))
                 
             conn.commit()
             conn.close()
@@ -679,11 +757,16 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            placeholder = '%s' if self.use_postgres else '?'
-            cursor.execute(f'''
-                INSERT INTO users (username, password_hash, email, role)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ''', (username, password, email, role))
+            if self.use_postgres:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (%s, %s, %s, %s)
+                ''', (username, password, email, role))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (?, ?, ?, ?)
+                ''', (username, password, email, role))
                 
             conn.commit()
             conn.close()
@@ -727,19 +810,50 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             return False
 
     def add_security(self, name, amount, price, industry, variance, security_type):
-        """פה אני מוסיף מניה/אג"ח חדשה לתיק"""
+        """פה אני מוסיף מניה/אג"ח חדשה לתיק או מעדכן כמות אם כבר קיימת"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        placeholder = '%s' if self.use_postgres else '?'
-        cursor.execute(f'''
-            INSERT INTO investments (name, amount, price, industry, variance, security_type)
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
-        ''', (name, amount, price, industry, variance, security_type))
-            
-        conn.commit()
-        conn.close()
-        return f"נייר הערך {name} נוסף בהצלחה"
+        if self.use_postgres:
+            # בדוק אם קיים
+            cursor.execute('SELECT amount FROM investments WHERE name = %s', (name,))
+            row = cursor.fetchone()
+            if row:
+                # עדכן כמות ומחיר
+                new_amount = float(row[0]) + float(amount)
+                cursor.execute('''
+                    UPDATE investments SET amount = %s, price = %s, industry = %s, variance = %s, security_type = %s WHERE name = %s
+                ''', (new_amount, price, industry, variance, security_type, name))
+                conn.commit()
+                conn.close()
+                return f"עודכנה כמות נייר הערך {name} ל-{new_amount}"
+            else:
+                cursor.execute('''
+                    INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (name, amount, price, industry, variance, security_type))
+                conn.commit()
+                conn.close()
+                return f"נייר הערך {name} נוסף בהצלחה"
+        else:
+            cursor.execute('SELECT amount FROM investments WHERE name = ?', (name,))
+            row = cursor.fetchone()
+            if row:
+                new_amount = float(row[0]) + float(amount)
+                cursor.execute('''
+                    UPDATE investments SET amount = ?, price = ?, industry = ?, variance = ?, security_type = ? WHERE name = ?
+                ''', (new_amount, price, industry, variance, security_type, name))
+                conn.commit()
+                conn.close()
+                return f"עודכנה כמות נייר הערך {name} ל-{new_amount}"
+            else:
+                cursor.execute('''
+                    INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, amount, price, industry, variance, security_type))
+                conn.commit()
+                conn.close()
+                return f"נייר הערך {name} נוסף בהצלחה"
 
     def get_all_securities(self):
         """פה אני מחזיר את כל המניות והאג"חים שיש לי בתיק, כמו רשימה בסופר"""
@@ -773,8 +887,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        placeholder = '%s' if self.use_postgres else '?'
-        cursor.execute(f'DELETE FROM investments WHERE name = {placeholder}', (name,))
+        if self.use_postgres:
+            cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
+        else:
+            cursor.execute('DELETE FROM investments WHERE name = ?', (name,))
             
         conn.commit()
         conn.close()
@@ -786,8 +902,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            placeholder = '%s' if self.use_postgres else '?'
-            cursor.execute(f'UPDATE investments SET price = {placeholder} WHERE name = {placeholder}', (new_price, name))
+            if self.use_postgres:
+                cursor.execute('UPDATE investments SET price = %s WHERE name = %s', (new_price, name))
+            else:
+                cursor.execute('UPDATE investments SET price = ? WHERE name = ?', (new_price, name))
             
             if cursor.rowcount > 0:
                 conn.commit()

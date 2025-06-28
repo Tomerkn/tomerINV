@@ -1,8 +1,10 @@
 from flask import (
-    Flask, render_template, redirect, url_for, flash, Response, request, jsonify
+    Flask, render_template, redirect, url_for, flash, Response, request,
+    jsonify
 )
 from flask_login import (
-    LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+    LoginManager, UserMixin, login_user, login_required, logout_user,
+    current_user
 )
 from flask_wtf import FlaskForm
 from wtforms import (
@@ -15,13 +17,13 @@ import logging
 import os
 import sys
 import traceback
-from datetime import datetime
 import time
 import io
 import requests
 import matplotlib
 matplotlib.use('Agg')  # השתמש ב-backend שלא דורש GUI
 import matplotlib.pyplot as plt
+import random
 
 print("=== התחלת ייבוא ספריות ===")
 print("=== בדיקת משתני סביבה ===")
@@ -196,17 +198,31 @@ class LoginForm(FlaskForm):  # טופס כניסה למערכת
     submit = SubmitField('התחבר')  # כפתור כניסה
 
 class SecurityForm(FlaskForm):  # טופס להוספת נייר ערך חדש לתיק
+    # רשימת מניות מה-API (S&P 500)
+    sp500_stocks = [
+        ("AAPL", "Apple Inc"), ("MSFT", "Microsoft Corp"), ("GOOG", "Alphabet Inc"), ("AMZN", "Amazon.com Inc"),
+        ("META", "Meta Platforms Inc"), ("NVDA", "NVIDIA Corp"), ("ADBE", "Adobe Inc"), ("CSCO", "Cisco Systems"),
+        ("ORCL", "Oracle Corp"), ("QCOM", "Qualcomm Inc"), ("INTC", "Intel Corp"), ("JPM", "JPMorgan Chase"),
+        ("V", "Visa Inc"), ("MA", "Mastercard Inc"), ("BAC", "Bank of America"), ("WFC", "Wells Fargo"),
+        ("MS", "Morgan Stanley"), ("SCHW", "Charles Schwab"), ("SPGI", "S&P Global"), ("BLK", "BlackRock Inc"),
+        ("UNH", "UnitedHealth Group"), ("LLY", "Eli Lilly"), ("ABBV", "AbbVie Inc"), ("MRK", "Merck & Co"),
+        ("ABT", "Abbott Labs"), ("TMO", "Thermo Fisher"), ("AMGN", "Amgen Inc"), ("MDT", "Medtronic plc"),
+        ("WMT", "Walmart Inc"), ("PG", "Procter & Gamble"), ("HD", "Home Depot"), ("COST", "Costco Wholesale"),
+        ("PEP", "PepsiCo Inc"), ("KO", "Coca-Cola Co"), ("MCD", "McDonald's Corp"), ("NKE", "Nike Inc"),
+        ("LOW", "Lowe's Cos"), ("PM", "Philip Morris"), ("XOM", "Exxon Mobil"), ("CVX", "Chevron Corp"),
+        ("NEE", "NextEra Energy"), ("LIN", "Linde plc"), ("DHR", "Danaher Corp"), ("HON", "Honeywell Intl"),
+        ("RTX", "RTX Corp"), ("TSLA", "Tesla Inc"), ("UNP", "Union Pacific"), ("UPS", "United Parcel Service"),
+        ("PLD", "Prologis Inc"), ("AMT", "American Tower"), ("CCI", "Crown Castle")
+    ]
+    stock_dropdown = SelectField('בחר מניה מה-API', choices=[('', '--- בחר מניה ---')] + sp500_stocks, default='')
     name = StringField('שם נייר הערך', validators=[DataRequired()])  # שדה לשם המניה (חובה)
     amount = FloatField('כמות', validators=[DataRequired()])  # שדה לכמות שרוצים לקנות (חובה)
-    # רשימה נפתחת לבחירת הענף שאליו שייכת המניה
     industry = SelectField('ענף', choices=[
         ('טכנולוגיה', 'טכנולוגיה'), ('תחבורה', 'תחבורה'), ('אנרגיה', 'אנרגיה'),
         ('בריאות', 'בריאות'), ('תעשייה', 'תעשייה'), ('פיננסים', 'פיננסים'),
         ('נדלן', 'נדלן'), ('צריכה פרטית', 'צריכה פרטית')
     ])
-    # רשימה נפתחת לבחירת רמת השונות במחיר
     variance = SelectField('רמת שונות', choices=[('נמוך', 'נמוך'), ('גבוה', 'גבוה')])
-    # רשימה נפתחת לבחירת סוג נייר הערך
     security_type = SelectField('סוג נייר הערך', choices=[
         ('מניה רגילה', 'מניה רגילה'), ('אגח ממשלתית', 'אגח ממשלתית'), 
         ('אגח קונצרנית', 'אגח קונצרנית')
@@ -289,23 +305,42 @@ def clear_session():
     return redirect(url_for('login'))
 
 @app.route('/')  # נתיב לדף הבית הראשי של האתר
-@login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def index():  # פונקציה שמציגה את דף הבית
     try:
         print("=== התחלת נתיב index ===")
-        print(f"משתמש מחובר: {current_user.is_authenticated}")
         
-        if current_user.is_authenticated:
-            print("מפנה לתיק השקעות")
-            return redirect(url_for('portfolio'))
+        # בדיקה בטוחה יותר של סטטוס המשתמש
+        try:
+            is_authenticated = current_user.is_authenticated
+            print(f"משתמש מחובר: {is_authenticated}")
+        except Exception as e:
+            print(f"שגיאה בבדיקת סטטוס משתמש: {e}")
+            is_authenticated = False
         
-        print("מציג דף הבית")
-        return render_template('index.html')
+        if is_authenticated:
+            print("מציג דף בית למשתמש מחובר")
+            # קבלת נתוני תיק ההשקעות להצגה בדף הבית
+            portfolio_data = portfolio_model.get_all_securities()
+            total_assets = sum(security['price'] * security['amount'] for security in portfolio_data)
+            asset_count = len(portfolio_data)
+            
+            return render_template('index.html', 
+                                 portfolio=portfolio_data, 
+                                 total_assets=total_assets, 
+                                 asset_count=asset_count)
+        else:
+            print("מפנה לדף התחברות")
+            return redirect(url_for('login'))
+            
     except Exception as e:
         print(f"שגיאה בנתיב הראשי: {str(e)}")
         import traceback
         traceback.print_exc()
-        return "שגיאה בטעינת הדף", 500
+        # במקום להחזיר שגיאה, ננסה להפנות לדף התחברות
+        try:
+            return redirect(url_for('login'))
+        except:
+            return "שגיאה בטעינת הדף", 500
 
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
@@ -315,9 +350,33 @@ def portfolio():  # פונקציה שמציגה את תיק ההשקעות המ�
         # חישוב הערך הכולל מכפל מחיר וכמות
         total_value = sum(security['price'] * security['amount'] for security in portfolio_data)
         
-        # הוספת total_value לכל נייר ערך להצגה בתבנית
+        # חישוב רמת סיכון לכל נייר ערך
+        risk_levels = {
+            'טכנולוגיה': 6,
+            'תחבורה': 5,
+            'אנרגיה': 4,
+            'בריאות': 4,
+            'תעשייה': 3,
+            'פיננסים': 3,
+            'נדלן': 2,
+            'צריכה פרטית': 1,
+            'Technology': 6,  # תמיכה באנגלית
+            'Healthcare': 4,
+            'Financial': 3,
+            'Consumer': 1
+        }
+        
+        # הוספת total_value ורמת סיכון לכל נייר ערך להצגה בתבנית
         for security in portfolio_data:
             security['total_value'] = security['price'] * security['amount']
+            
+            # הוספת רמת סיכון לפי ענף (עם ערך ברירת מחדל)
+            industry = security.get('industry', 'לא מוגדר')
+            security['risk_level'] = risk_levels.get(industry, 3)  # ברירת מחדל: 3
+            
+            # אם אין ענף, נוסיף ערך ברירת מחדל
+            if not industry or industry == 'לא מוגדר':
+                security['industry'] = 'לא מוגדר'
         
         return render_template('portfolio.html', portfolio=portfolio_data, total_value=total_value)  # מציג את הדף
     except Exception as e:
@@ -329,6 +388,11 @@ def portfolio():  # פונקציה שמציגה את תיק ההשקעות המ�
 @admin_required  # דקורטור שדורש הרשאות מנהל
 def add_security():  # פונקציה להוספת נייר ערך חדש לתיק
     form = SecurityForm()  # יוצר טופס הוספת נייר ערך
+    # אם נבחרה מניה מה-dropdown, נעדכן את שדה השם אוטומטית
+    if form.stock_dropdown.data and form.stock_dropdown.data != '':
+        # מצא את שם המניה לפי הסימול
+        symbol_to_name = dict(SecurityForm.sp500_stocks)
+        form.name.data = symbol_to_name.get(form.stock_dropdown.data, form.stock_dropdown.data)
     if form.validate_on_submit():  # בודק אם הטופס נשלח ועבר אימות
         security = {
             'name': form.name.data,  # שם נייר הערך
@@ -344,7 +408,6 @@ def add_security():  # פונקציה להוספת נייר ערך חדש לתי
                 flash('שגיאה בהוספת נייר הערך', 'danger')  # מציג הודעת שגיאה
         except Exception as e:
             flash(f'שגיאה: {str(e)}', 'danger')  # מציג הודעת שגיאה מפורטת
-    
     return render_template('add_security.html', form=form)  # מציג את דף הוספת נייר ערך
 
 @app.route('/portfolio/delete/<security_name>', methods=['POST'])
@@ -363,141 +426,65 @@ def delete_security(security_name):
 @admin_required
 def update_single_price(symbol):
     try:
-        price = Broker.update_price(symbol)
-        flash(f'מחיר {symbol} עודכן בהצלחה לסכום ₪{price:.2f}', 'success')
+        # קבלת המחיר הנוכחי מהמסד נתונים
+        portfolio_data = portfolio_model.get_all_securities()
+        current_item = None
+        for item in portfolio_data:
+            if item['name'] == symbol:
+                current_item = item
+                break
+        
+        if not current_item:
+            flash(f'❌ לא נמצא נייר ערך בשם {symbol}', 'danger')
+            return redirect(url_for('portfolio'))
+        
+        current_price = current_item['price']
+        
+        # מיפוי סמלים למניות
+        symbol_mapping = {
+            'Apple Inc': 'AAPL', 'אפל': 'AAPL',
+            'Microsoft Corp': 'MSFT', 'מיקרוסופט': 'MSFT',
+            'Alphabet Inc': 'GOOG', 'גוגל': 'GOOG',
+            'Amazon.com Inc': 'AMZN', 'אמזון': 'AMZN',
+            'Meta Platforms Inc': 'META', 'מטא': 'META',
+            'NVIDIA Corp': 'NVDA', 'נווידיה': 'NVDA',
+            'Tesla Inc': 'TSLA', 'טסלה': 'TSLA',
+            'JPMorgan Chase': 'JPM',
+            'Visa Inc': 'V', 'ויזה': 'V',
+            'Walmart Inc': 'WMT', 'וולמארט': 'WMT'
+        }
+        
+        api_symbol = symbol_mapping.get(symbol)
+        
+        if not api_symbol:
+            flash(f'⚠️ לא נמצא סמל API עבור {symbol} - לא ניתן לעדכן', 'warning')
+            return redirect(url_for('portfolio'))
+        
+        flash(f'🔍 מקבל מחיר עדכני עבור {symbol} ({api_symbol})...', 'info')
+        
+        # קבלת מחיר חדש מה-API
+        new_price = Broker.update_price(api_symbol)
+        
+        if new_price and new_price > 0:
+            # בדיקה אם המחיר השתנה משמעותית
+            price_change = abs(new_price - current_price) / current_price * 100
+            
+            if price_change > 1:  # אם השינוי גדול מ-1%
+                # עדכון המחיר במסד הנתונים
+                portfolio_model.update_security_price(symbol, new_price)
+                
+                change_direction = "📈" if new_price > current_price else "📉"
+                flash(f'{change_direction} {symbol}: ₪{current_price:.2f} → ₪{new_price:.2f} ({price_change:+.1f}%)', 'success')
+            else:
+                flash(f'✅ {symbol}: מחיר לא השתנה משמעותית (₪{current_price:.2f})', 'info')
+        else:
+            flash(f'❌ לא הצלחתי לקבל מחיר חדש עבור {symbol}', 'error')
+            
     except Exception as e:
-        flash(f'שגיאה בעדכון מחיר {symbol}: {str(e)}', 'error')
+        flash(f'❌ שגיאה בעדכון מחיר {symbol}: {str(e)}', 'error')
     return redirect(url_for('portfolio'))
 
 @app.route('/update-all-prices')
-@login_required
-@admin_required
-def update_all_prices():
-    """עדכון כל המחירים במערכת עם נתונים אמיתיים מ-Alpha Vantage API"""
-    try:
-        portfolio_data = portfolio_model.get_all_securities()
-        updated_count = 0
-        failed_count = 0
-        
-        # מפה של סמלי מניות לפי שמות
-        symbol_mapping = {
-            'Apple Inc': 'AAPL',
-            'Microsoft Corp': 'MSFT', 
-            'Tesla Inc': 'TSLA',
-            'Amazon.com Inc': 'AMZN',
-            'Alphabet Inc': 'GOOG',
-            'Meta Platforms Inc': 'META',
-            'NVIDIA Corp': 'NVDA',
-            'JPMorgan Chase': 'JPM',
-            'Walmart Inc': 'WMT',
-            'Visa Inc': 'V',
-            'Teva Pharmaceutical': 'TEVA',
-            'Check Point Software': 'CHKP',
-            'NICE Ltd': 'NICE',
-            'CyberArk Software': 'CYBR',
-            'Wix.com Ltd': 'WIX',
-            'Monday.com Ltd': 'MNDY',
-            'ZIM Integrated Shipping': 'ZIM',
-            'Fiverr International': 'FVRR',
-            'Oramed Pharmaceuticals': 'ORMP',
-            'Radware Ltd': 'RDWR'
-        }
-        
-        for item in portfolio_data:
-            try:
-                security_name = item['name']
-                symbol = symbol_mapping.get(security_name)
-                
-                if symbol:
-                    print(f"מעדכן מחיר עבור {security_name} ({symbol})...")
-                    # קבלת מחיר אמיתי מ-Alpha Vantage API
-                    new_price = Broker.update_price(symbol)
-                    
-                    if new_price and new_price > 0:
-                        # עדכון המחיר במסד הנתונים
-                        portfolio_model.update_security_price(security_name, new_price)
-                        print(f"✅ מחיר {security_name} עודכן ל-{new_price:.2f} ₪")
-                        updated_count += 1
-                    else:
-                        print(f"❌ לא הצלחתי לקבל מחיר חדש עבור {security_name}")
-                        failed_count += 1
-                else:
-                    print(f"⚠️ לא נמצא סמל עבור {security_name}")
-                    failed_count += 1
-                
-                # עיכוב קטן בין בקשות כדי לא לעבור על מגבלות ה-API
-                import time
-                time.sleep(0.5)
-                
-            except Exception as e:
-                print(f"❌ שגיאה בעדכון {item['name']}: {e}")
-                failed_count += 1
-        
-        # הודעות למשתמש
-        if updated_count > 0:
-            flash(f'✅ עודכנו {updated_count} מחירים בהצלחה עם נתונים אמיתיים מ-Alpha Vantage API', 'success')
-        if failed_count > 0:
-            flash(f'⚠️ {failed_count} מחירים לא עודכנו (בעיה עם API או חיבור)', 'warning')
-        
-        if updated_count == 0 and failed_count > 0:
-            flash('❌ לא הצלחתי לעדכן אף מחיר. בדוק חיבור לאינטרנט ו-API של Alpha Vantage', 'danger')
-        
-        return redirect(url_for('portfolio'))
-    except Exception as e:
-        flash(f'❌ שגיאה כללית בעדכון מחירים: {str(e)}', 'danger')
-        return redirect(url_for('portfolio'))
-
-@app.route('/advice', methods=['GET', 'POST'])
-@login_required
-def advice():
-    try:
-        if ai_agent:
-            advice_text = ai_agent.get_advice()
-        else:
-            advice_text = "שירות הבינה המלאכותית אינו זמין כרגע."
-        return render_template('advice.html', advice=advice_text)
-    except Exception as e:
-        flash(f'שגיאה בקבלת ייעוץ: {str(e)}', 'danger')
-        return render_template('advice.html', advice="שגיאה בקבלת ייעוץ")
-
-@app.route('/risk')
-@login_required
-def risk():
-    try:
-        portfolio_data = portfolio_model.get_all_securities()
-        
-        # חישוב הערך הכולל ואחוזים לכל נייר ערך
-        total_value = 0
-        for security in portfolio_data:
-            security['value'] = security['price'] * security['amount']
-            total_value += security['value']
-        
-        # חישוב אחוזים ורמת סיכון
-        risk_levels = {
-            'טכנולוגיה': 6,
-            'תחבורה': 5,
-            'אנרגיה': 4,
-            'בריאות': 4,
-            'תעשייה': 3,
-            'פיננסים': 3,
-            'נדלן': 2,
-            'צריכה פרטית': 1
-        }
-        
-        for security in portfolio_data:
-            if total_value > 0:
-                security['percentage'] = (security['value'] / total_value) * 100
-            else:
-                security['percentage'] = 0
-            
-            # הוספת רמת סיכון לפי ענף
-            security['risk_level'] = risk_levels.get(security.get('industry', ''), 3)
-        
-        return render_template('risk.html', portfolio=portfolio_data)
-    except Exception as e:
-        flash(f'שגיאה בטעינת ניתוח סיכונים: {str(e)}', 'danger')
-        return redirect(url_for('index'))
-
 @app.route('/graph')
 @login_required
 def graph():
@@ -528,10 +515,16 @@ def generate_pie_chart():
     try:
         portfolio_data = portfolio_model.get_all_securities()
         
+        # הגדרת פונט וכיוון לעברית
+        plt.rcParams['font.family'] = ['DejaVu Sans', 'Arial Unicode MS', 'Tahoma', 'Arial']
+        plt.rcParams['axes.unicode_minus'] = False
+        plt.rcParams['text.usetex'] = False
+        
         if not portfolio_data:
             # אם אין נתונים, יצור גרף ריק
             fig, ax = plt.subplots(figsize=(8, 6))
-            ax.text(0.5, 0.5, 'אין נתונים להצגה', ha='center', va='center', transform=ax.transAxes, fontsize=16)
+            ax.text(0.5, 0.5, 'אין נתונים להצגה', ha='center', va='center', 
+                   transform=ax.transAxes, fontsize=16, fontfamily='DejaVu Sans')
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
         else:
@@ -541,17 +534,34 @@ def generate_pie_chart():
             sizes = [item['price'] * item['amount'] for item in portfolio_data]
             
             fig, ax = plt.subplots(figsize=(10, 8))
-            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            
+            # יצירת גרף עוגה עם הגדרות עברית מתאימות
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', 
+                                            startangle=90, textprops={'fontsize': 10, 'fontfamily': 'DejaVu Sans'})
             ax.axis('equal')
             
-            # הגדרת צבעים לטקסט
+            # הגדרת עיצוב טקסט עם תיקון כיוון עברית
+            for text in texts:
+                text.set_fontfamily('DejaVu Sans')
+                text.set_fontsize(10)
+                text.set_horizontalalignment('center')
+                # תיקון כיוון הטקסט לעברית
+                current_text = text.get_text()
+                if current_text and any('\u0590' <= char <= '\u05FF' 
+                                       for char in current_text):
+                    # אם יש תווים עבריים, הפוך את הכיוון
+                    text.set_text(current_text[::-1])
+            
             for autotext in autotexts:
                 autotext.set_color('white')
                 autotext.set_fontweight('bold')
+                autotext.set_fontfamily('DejaVu Sans')
+                autotext.set_fontsize(9)
         
         # שמירת הגרף לתמונה
         img = io.BytesIO()
-        plt.savefig(img, format='png', bbox_inches='tight', dpi=300)
+        plt.savefig(img, format='png', bbox_inches='tight', dpi=300, 
+                   facecolor='white', edgecolor='none')
         img.seek(0)
         plt.close()
         
@@ -559,12 +569,13 @@ def generate_pie_chart():
     except Exception as e:
         # במקרה של שגיאה, החזר תמונה ריקה
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.text(0.5, 0.5, f'שגיאה: {str(e)}', ha='center', va='center', transform=ax.transAxes, fontsize=12)
+        ax.text(0.5, 0.5, f'שגיאה: {str(e)}', ha='center', va='center', 
+               transform=ax.transAxes, fontsize=12, fontfamily='DejaVu Sans')
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         
         img = io.BytesIO()
-        plt.savefig(img, format='png', bbox_inches='tight')
+        plt.savefig(img, format='png', bbox_inches='tight', facecolor='white')
         img.seek(0)
         plt.close()
         
@@ -1077,16 +1088,23 @@ def inject_cloud_data():
         ]
         
         for security in securities:
-            cursor.execute("""
-                INSERT INTO investments (name, amount, price, industry, variance, security_type)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (name) DO UPDATE SET
-                    amount = EXCLUDED.amount,
-                    price = EXCLUDED.price,
-                    industry = EXCLUDED.industry,
-                    variance = EXCLUDED.variance,
-                    security_type = EXCLUDED.security_type
-            """, security)
+            if portfolio_model.use_postgres:
+                cursor.execute("""
+                    INSERT INTO investments (name, amount, price, industry, variance, security_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (name) DO UPDATE SET
+                        amount = EXCLUDED.amount,
+                        price = EXCLUDED.price,
+                        industry = EXCLUDED.industry,
+                        variance = EXCLUDED.variance,
+                        security_type = EXCLUDED.security_type
+                """, security)
+            else:
+                # SQLite doesn't support ON CONFLICT with EXCLUDED, so we use INSERT OR REPLACE
+                cursor.execute("""
+                    INSERT OR REPLACE INTO investments (name, amount, price, industry, variance, security_type)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, security)
         
         # הוספת משתמשים לדוגמה
         print("מוסיף משתמשים...")
@@ -1100,14 +1118,21 @@ def inject_cloud_data():
         ]
         
         for user in users:
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, email, role)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (username) DO UPDATE SET
-                    password_hash = EXCLUDED.password_hash,
-                    email = EXCLUDED.email,
-                    role = EXCLUDED.role
-            """, user)
+            if portfolio_model.use_postgres:
+                cursor.execute("""
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (username) DO UPDATE SET
+                        password_hash = EXCLUDED.password_hash,
+                        email = EXCLUDED.email,
+                        role = EXCLUDED.role
+                """, user)
+            else:
+                # SQLite version
+                cursor.execute("""
+                    INSERT OR REPLACE INTO users (username, password_hash, email, role)
+                    VALUES (?, ?, ?, ?)
+                """, user)
         
         conn.commit()
         
@@ -1280,22 +1305,37 @@ def setup_database():
         admin_password_hash = 'admin'
         demo_password_hash = 'user'
         
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, email, role)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (username) DO UPDATE SET
-                password_hash = EXCLUDED.password_hash,
-                email = EXCLUDED.email,
-                role = EXCLUDED.role
-        """, ('admin', admin_password_hash, 'admin@example.com', 'admin'))
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, email, role)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (username) DO UPDATE SET
-                password_hash = EXCLUDED.password_hash,
-                email = EXCLUDED.email,
-                role = EXCLUDED.role
-        """, ('user', demo_password_hash, 'demo@example.com', 'user'))
+        # בדיקה אם משתמש admin כבר קיים
+        if portfolio_model.use_postgres:
+            cursor.execute('SELECT id FROM users WHERE username = %s', ('admin',))
+            if not cursor.fetchone():
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (%s, %s, %s, %s)
+                ''', ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+        else:
+            cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',))
+            if not cursor.fetchone():
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (?, ?, ?, ?)
+                ''', ('admin', admin_password_hash, 'admin@example.com', 'admin'))
+        
+        # בדיקה אם משתמש user כבר קיים
+        if portfolio_model.use_postgres:
+            cursor.execute('SELECT id FROM users WHERE username = %s', ('user',))
+            if not cursor.fetchone():
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (%s, %s, %s, %s)
+                ''', ('user', demo_password_hash, 'demo@example.com', 'user'))
+        else:
+            cursor.execute('SELECT id FROM users WHERE username = ?', ('user',))
+            if not cursor.fetchone():
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash, email, role)
+                    VALUES (?, ?, ?, ?)
+                ''', ('user', demo_password_hash, 'demo@example.com', 'user'))
         
         conn.commit()
         conn.close()
@@ -1575,6 +1615,59 @@ def ollama_status():
         <p>שגיאה: {str(e)}</p>
         """
 
+@app.route('/api-keys-status')
+@login_required
+@admin_required
+def api_keys_status():
+    """מציג מצב מפתחות ה-API ומאפשר ניהול שלהם"""
+    try:
+        # קבלת מידע על מצב המפתחות
+        status = Broker.get_api_keys_status()
+        
+        return render_template('api_keys.html', 
+                             total_keys=status['total_keys'],
+                             current_key_index=status['current_key_index'],
+                             current_key=status['current_key'],
+                             available_keys=status['available_keys'])
+        
+    except Exception as e:
+        flash(f'שגיאה בקבלת מצב מפתחות: {str(e)}', 'danger')
+        return redirect(url_for('portfolio'))
+
+@app.route('/reset-api-rotation')
+@login_required
+@admin_required
+def reset_api_rotation():
+    """מאפס את רוטציה המפתחות למפתח הראשון"""
+    try:
+        Broker.reset_key_rotation()
+        flash('רוטציה המפתחות אופסה למפתח הראשון', 'success')
+    except Exception as e:
+        flash(f'שגיאה באיפוס רוטציה: {str(e)}', 'danger')
+    return redirect(url_for('api_keys_status'))
+
+@app.route('/test-current-api-key')
+@login_required
+@admin_required
+def test_current_api_key():
+    """בודק את המפתח הנוכחי עם בקשת מחיר לדוגמה"""
+    try:
+        # בדיקה עם מניית Apple
+        test_symbol = 'AAPL'
+        print(f"בודק מפתח נוכחי עם מניית {test_symbol}")
+        
+        price = Broker.update_price(test_symbol)
+        
+        if price and price > 0:
+            flash(f'המפתח הנוכחי עובד! מחיר {test_symbol}: ₪{price:.2f}', 'success')
+        else:
+            flash(f'המפתח הנוכחי לא עובד או הגיע למגבלה', 'warning')
+            
+    except Exception as e:
+        flash(f'שגיאה בבדיקת מפתח: {str(e)}', 'danger')
+    
+    return redirect(url_for('api_keys_status'))
+
 # מפעילים את האתר
 def initialize_app():
     """אתחול האפליקציה - יוצר טבלאות ובודק נתונים"""
@@ -1598,17 +1691,14 @@ plt.rcParams['font.family'] = ['Arial']  # הגדרת פונט שתומך בעב
 # הוספת פילטר nl2br עבור Jinja2
 def nl2br(value):
     """המרת שורות חדשות ל-<br> tags"""
-    if value:
-        return value.replace('\n', '<br>')
-    return value
+    if value is None:
+        return ""
+    return value.replace('\n', '<br>')
 
 app.jinja_env.filters['nl2br'] = nl2br
 
 @app.route('/favicon.ico')
 def favicon():
-    """מחזיר favicon ריק כדי למנוע שגיאות 404"""
-    return '', 204
-
 if __name__ == '__main__':
     print("=== התחלת הפעלת האפליקציה ===")
     
