@@ -18,6 +18,7 @@ import traceback
 from datetime import datetime
 import time
 import io
+import requests
 import matplotlib
 matplotlib.use('Agg')  # השתמש ב-backend שלא דורש GUI
 import matplotlib.pyplot as plt
@@ -44,6 +45,7 @@ except Exception as e:
 print("=== התחלת ייבוא ollamamodel ===")
 try:
     from ollamamodel import AI_Agent
+    print("=== סיום טעינת ollamamodel.py ===")
     print("=== סיום ייבוא ollamamodel ===")
 except ImportError as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
@@ -304,7 +306,13 @@ def index():  # פונקציה שמציגה את דף הבית
 def portfolio():  # פונקציה שמציגה את תיק ההשקעות המלא
     try:
         portfolio_data = portfolio_model.get_all_securities()  # מקבל את כל ניירות הערך
-        total_value = sum(security['total_value'] for security in portfolio_data)  # מחשב את הערך הכולל
+        # חישוב הערך הכולל מכפל מחיר וכמות
+        total_value = sum(security['price'] * security['amount'] for security in portfolio_data)
+        
+        # הוספת total_value לכל נייר ערך להצגה בתבנית
+        for security in portfolio_data:
+            security['total_value'] = security['price'] * security['amount']
+        
         return render_template('portfolio.html', portfolio=portfolio_data, total_value=total_value)  # מציג את הדף
     except Exception as e:
         flash(f'שגיאה בטעינת תיק ההשקעות: {str(e)}', 'danger')
@@ -481,7 +489,8 @@ def generate_pie_chart():
         else:
             # יצירת גרף עוגה
             labels = [item['name'] for item in portfolio_data]
-            sizes = [item['total_value'] for item in portfolio_data]
+            # חישוב הערך הכולל מכפל מחיר וכמות
+            sizes = [item['price'] * item['amount'] for item in portfolio_data]
             
             fig, ax = plt.subplots(figsize=(10, 8))
             wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
@@ -1522,38 +1531,27 @@ def ollama_status():
         """
 
 # מפעילים את האתר
-if __name__ == '__main__':
-    print("=== התחלת הפעלת האפליקציה ===")
+def initialize_app():
+    """אתחול האפליקציה - יוצר טבלאות ובודק נתונים"""
+    print("=== התחלת אתחול האפליקציה ===")
     
     # יצירת טבלאות במסד הנתונים
     print("=== יצירת טבלאות במסד הנתונים ===")
     portfolio_model.create_tables()
+    print("=== טבלאות נוצרו בהצלחה ===")
     
     # בדיקת תוכן מסד הנתונים
     print("=== בדיקת תוכן מסד הנתונים ===")
     securities = portfolio_model.get_all_securities()
-    if securities:
-        print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
-    else:
-        print("מסד הנתונים ריק, מוסיף נתונים לדוגמה...")
-        # הוספת נתונים לדוגמה רק אם המסד ריק
-        sample_data = [
-            ("אפל", 10, 150.0, "טכנולוגיה", 0.15, "מניה"),
-            ("גוגל", 5, 2800.0, "טכנולוגיה", 0.12, "מניה"),
-            ("אגח ממשלתי", 100, 100.0, "ממשלתי", 0.05, "אגח"),
-            ("טסלה", 3, 800.0, "טכנולוגיה", 0.25, "מניה"),
-            ("מיקרוסופט", 8, 300.0, "טכנולוגיה", 0.18, "מניה"),
-            ("אמזון", 2, 1500.0, "טכנולוגיה", 0.20, "מניה")
-        ]
-        
-        for name, amount, price, industry, variance, security_type in sample_data:
-            try:
-                portfolio_model.add_security(name, amount, price, industry, variance, security_type)
-                print(f"נוסף: {name} - {amount} יחידות ב-{price} ₪")
-            except Exception as e:
-                print(f"שגיאה בהוספת {name}: {e}")
-        
-        print("נתונים לדוגמה נוספו בהצלחה!")
+    print(f"מסד הנתונים מכיל {len(securities)} ניירות ערך")
+    
+    print("=== סיום אתחול האפליקציה ===")
+
+if __name__ == '__main__':
+    print("=== התחלת הפעלת האפליקציה ===")
+    
+    # אתחול האפליקציה
+    initialize_app()
     
     # קבלת פורט מהסביבה (עבור Railway/Heroku)
     port = int(os.environ.get('PORT', 4000))
@@ -1561,3 +1559,12 @@ if __name__ == '__main__':
     
     # הפעלת האפליקציה
     app.run(host='0.0.0.0', port=port, debug=False)
+else:
+    # כשמריצים עם gunicorn, רק מאתחלים את הטבלאות
+    print("=== אתחול עבור gunicorn ===")
+    try:
+        portfolio_model.create_tables()
+        print("=== טבלאות נוצרו בהצלחה ===")
+    except Exception as e:
+        print(f"שגיאה באתחול: {e}")
+    print("=== סיום אתחול עבור gunicorn ===")
