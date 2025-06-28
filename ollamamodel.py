@@ -16,8 +16,8 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
         print(f"OLLAMA_URL מהסביבה: {os.environ.get('OLLAMA_URL', 'לא מוגדר')}")
         print(f"משתמש בכתובת: {self.ollama_url}")
-        # איזה מודל להשתמש בו (llama3.1:8b זה מודל חדש שמתאים ל-8GB RAM)
-        self.model_name = 'llama3.1:8b'
+        # איזה מודל להשתמש בו (llama3.2:1b זה מודל קטן ויעיל שמתאים לענן)
+        self.model_name = 'llama3.2:1b'
         print(f"מודל שנבחר: {self.model_name}")
         # בודק אם Ollama זמין
         print("בודק זמינות Ollama...")

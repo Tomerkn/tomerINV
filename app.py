@@ -1308,6 +1308,8 @@ def setup_database():
         
         # בדיקה אם כבר יש ניירות ערך
         existing_securities = portfolio_model.get_all_securities()
+        total_securities = len(world_securities) + len(israel_securities)
+        
         if len(existing_securities) > 0:
             print(f"כבר יש {len(existing_securities)} ניירות ערך במסד הנתונים")
             print("=== סיום הגדרת מסד נתונים מלא ===")
@@ -1319,6 +1321,7 @@ def setup_database():
                 <li><strong>טבלאות:</strong> users, securities, investments</li>
                 <li><strong>משתמשים:</strong> admin, user</li>
                 <li><strong>ניירות ערך:</strong> {len(existing_securities)} מניות ואגרות חוב</li>
+                <li><strong>ניירות ערך זמינים להוספה:</strong> {total_securities} (10 מהעולם + 10 מישראל)</li>
             </ul>
             <h3>פרטי התחברות:</h3>
             <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
@@ -1383,8 +1386,6 @@ def setup_database():
                 failed_count += 1
         
         print("=== סיום הגדרת מסד נתונים מלא ===")
-        
-        total_securities = len(world_securities) + len(israel_securities)
         
         if added_count == 0:
             result = f"""

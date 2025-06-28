@@ -14,9 +14,9 @@ echo "🚀 Starting Ollama server..."\n\
 ollama serve &\n\
 echo "⏳ Waiting for Ollama server to start..."\n\
 sleep 15\n\
-echo "📥 Pulling llama3.1:8b model..."\n\
-ollama pull llama3.1:8b\n\
-echo "✅ Ollama is ready!"\n\
+echo "📥 Pulling llama3.2:1b model (small & efficient)..."\n\
+ollama pull llama3.2:1b\n\
+echo "✅ Ollama is ready with llama3.2:1b!"\n\
 wait' > /start-ollama.sh && chmod +x /start-ollama.sh
 
 # Health check
