@@ -16,8 +16,8 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
         print(f"OLLAMA_URL מהסביבה: {os.environ.get('OLLAMA_URL', 'לא מוגדר')}")
         print(f"משתמש בכתובת: {self.ollama_url}")
-        # איזה מודל להשתמש בו (llama3.2:1b זה מודל קטן ויעיל שמתאים לענן)
-        self.model_name = 'llama3.2:1b'
+        # איזה מודל להשתמש בו (phi3:mini זה מודל קטן מאוד שמתאים לענן)
+        self.model_name = 'phi3:mini'
         print(f"מודל שנבחר: {self.model_name}")
         # בודק אם Ollama זמין
         print("בודק זמינות Ollama...")
@@ -151,9 +151,32 @@ class AI_Agent:  # פה אני יוצר סוכן בינה מלאכותית – �
         
         return prompt
     
+    def _ensure_model_available(self):
+        """וודא שהמודל זמין, הורד אותו אם צריך"""
+        try:
+            client = ollama.Client(host=self.ollama_url)
+            # בדוק אם המודל כבר קיים
+            models = client.list()
+            model_names = [model['name'] for model in models['models']]
+            
+            if self.model_name not in model_names:
+                print(f"מוריד מודל {self.model_name}...")
+                client.pull(self.model_name)
+                print(f"מודל {self.model_name} הורד בהצלחה!")
+            else:
+                print(f"מודל {self.model_name} כבר קיים")
+            return True
+        except Exception as e:
+            print(f"שגיאה בהורדת מודל: {str(e)}")
+            return False
+
     def _send_to_ollama(self, prompt):
         """פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה"""
         try:
+            # וודא שהמודל זמין
+            if not self._ensure_model_available():
+                raise Exception("לא הצלחתי להוריד את המודל")
+            
             # פה אני מתחבר ל-Ollama ושולח את ההודעה
             client = ollama.Client(host=self.ollama_url)
             response = client.chat(
