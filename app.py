@@ -22,6 +22,7 @@ import requests
 import sys
 import traceback
 from datetime import datetime
+import time
 
 matplotlib.use('Agg')  # משתמש ב-backend שלא דורש GUI
 
@@ -326,27 +327,78 @@ def update_single_price(symbol):
 @login_required
 @admin_required
 def update_all_prices():
+    """עדכון כל המחירים במערכת עם נתונים אמיתיים מ-Alpha Vantage API"""
     try:
         portfolio_data = portfolio_model.get_all_securities()
         updated_count = 0
-        errors = 0
+        failed_count = 0
+        
+        # מפה של סמלי מניות לפי שמות
+        symbol_mapping = {
+            'Apple Inc': 'AAPL',
+            'Microsoft Corp': 'MSFT', 
+            'Tesla Inc': 'TSLA',
+            'Amazon.com Inc': 'AMZN',
+            'Alphabet Inc': 'GOOG',
+            'Meta Platforms Inc': 'META',
+            'NVIDIA Corp': 'NVDA',
+            'JPMorgan Chase': 'JPM',
+            'Walmart Inc': 'WMT',
+            'Visa Inc': 'V',
+            'Teva Pharmaceutical': 'TEVA',
+            'Check Point Software': 'CHKP',
+            'NICE Ltd': 'NICE',
+            'CyberArk Software': 'CYBR',
+            'Wix.com Ltd': 'WIX',
+            'Monday.com Ltd': 'MNDY',
+            'ZIM Integrated Shipping': 'ZIM',
+            'Fiverr International': 'FVRR',
+            'Oramed Pharmaceuticals': 'ORMP',
+            'Radware Ltd': 'RDWR'
+        }
         
         for item in portfolio_data:
             try:
-                # כאן אפשר להוסיף לוגיקה לעדכון מחירים
-                # כרגע נדלג על זה
-                updated_count += 1
+                security_name = item['name']
+                symbol = symbol_mapping.get(security_name)
+                
+                if symbol:
+                    print(f"מעדכן מחיר עבור {security_name} ({symbol})...")
+                    # קבלת מחיר אמיתי מ-Alpha Vantage API
+                    new_price = Broker.update_price(symbol)
+                    
+                    if new_price and new_price > 0:
+                        # עדכון המחיר במסד הנתונים
+                        portfolio_model.update_security_price(security_name, new_price)
+                        print(f"✅ מחיר {security_name} עודכן ל-{new_price:.2f} ₪")
+                        updated_count += 1
+                    else:
+                        print(f"❌ לא הצלחתי לקבל מחיר חדש עבור {security_name}")
+                        failed_count += 1
+                else:
+                    print(f"⚠️ לא נמצא סמל עבור {security_name}")
+                    failed_count += 1
+                
+                # עיכוב קטן בין בקשות כדי לא לעבור על מגבלות ה-API
+                import time
+                time.sleep(0.5)
+                
             except Exception as e:
-                errors += 1
+                print(f"❌ שגיאה בעדכון {item['name']}: {e}")
+                failed_count += 1
         
+        # הודעות למשתמש
         if updated_count > 0:
-            flash(f'עודכנו {updated_count} מחירים בהצלחה', 'success')
-        if errors > 0:
-            flash(f'{errors} מחירים לא עודכנו בגלל שגיאות', 'warning')
+            flash(f'✅ עודכנו {updated_count} מחירים בהצלחה עם נתונים אמיתיים מ-Alpha Vantage API', 'success')
+        if failed_count > 0:
+            flash(f'⚠️ {failed_count} מחירים לא עודכנו (בעיה עם API או חיבור)', 'warning')
+        
+        if updated_count == 0 and failed_count > 0:
+            flash('❌ לא הצלחתי לעדכן אף מחיר. בדוק חיבור לאינטרנט ו-API של Alpha Vantage', 'danger')
         
         return redirect(url_for('portfolio'))
     except Exception as e:
-        flash(f'שגיאה בעדכון מחירים: {str(e)}', 'danger')
+        flash(f'❌ שגיאה כללית בעדכון מחירים: {str(e)}', 'danger')
         return redirect(url_for('portfolio'))
 
 @app.route('/advice', methods=['GET', 'POST'])
@@ -1092,34 +1144,32 @@ def setup_database():
     """
     print("=== התחלת הגדרת מסד נתונים מלא ===")
     
-    # הגדרת רשימות ניירות ערך
+    # הגדרת רשימות ניירות ערך אמיתיים
     world_securities = [
-        ("AAPL", "Apple", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("MSFT", "Microsoft", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("TSLA", "Tesla", "תחבורה", "גבוה", "מניה רגילה"),
-        ("AMZN", "Amazon", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("GOOG", "Google", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("META", "Meta", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("NVDA", "Nvidia", "טכנולוגיה", "גבוה", "מניה רגילה"),
-        ("JPM", "JPMorgan", "פיננסים", "נמוך", "מניה רגילה"),
-        ("WMT", "Walmart", "צריכה פרטית", "נמוך", "מניה רגילה"),
-        ("V", "Visa", "פיננסים", "נמוך", "מניה רגילה")
+        ("AAPL", "Apple Inc", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("MSFT", "Microsoft Corp", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("TSLA", "Tesla Inc", "תחבורה", "גבוה", "מניה רגילה"),
+        ("AMZN", "Amazon.com Inc", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("GOOG", "Alphabet Inc", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("META", "Meta Platforms Inc", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("NVDA", "NVIDIA Corp", "טכנולוגיה", "גבוה", "מניה רגילה"),
+        ("JPM", "JPMorgan Chase", "פיננסים", "נמוך", "מניה רגילה"),
+        ("WMT", "Walmart Inc", "צריכה פרטית", "נמוך", "מניה רגילה"),
+        ("V", "Visa Inc", "פיננסים", "נמוך", "מניה רגילה")
     ]
     
     israel_securities = [
-        ('TEVA.TA', 'טבע', 'בריאות', 'גבוה', 'מניה רגילה'),
-        ('POLI.TA', 'פועלים', 'פיננסים', 'נמוך', 'מניה רגילה'),
-        ('LUMI.TA', 'לאומי', 'פיננסים', 'נמוך', 'מניה רגילה'),
-        ('BEZQ.TA', 'בזק', 'תקשורת', 'נמוך', 'מניה רגילה'),
-        ('ICL.TA', 'כיל', 'תעשייה', 'נמוך', 'מניה רגילה'),
-        ('MZTF.TA', 'מזרחי', 'פיננסים', 'נמוך', 'מניה רגילה'),
-        ('ZIM.TA', 'צים', 'תחבורה', 'גבוה', 'מניה רגילה'),
-        ('DSKA.TA', 'דסקש', 'תעשייה', 'נמוך', 'מניה רגילה'),
-        ('ISL.TA', 'איסלנד', 'תיירות', 'גבוה', 'מניה רגילה'),
-        ('GOVBOND.TA', 'אגח ממשלתי', 'פיננסים', 'נמוך', 'אגח ממשלתית')
+        ('TEVA', 'Teva Pharmaceutical', 'בריאות', 'גבוה', 'מניה רגילה'),
+        ('CHKP', 'Check Point Software', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('NICE', 'NICE Ltd', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('CYBR', 'CyberArk Software', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('WIX', 'Wix.com Ltd', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('MNDY', 'Monday.com Ltd', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('ZIM', 'ZIM Integrated Shipping', 'תחבורה', 'גבוה', 'מניה רגילה'),
+        ('FVRR', 'Fiverr International', 'טכנולוגיה', 'גבוה', 'מניה רגילה'),
+        ('ORMP', 'Oramed Pharmaceuticals', 'בריאות', 'גבוה', 'מניה רגילה'),
+        ('RDWR', 'Radware Ltd', 'טכנולוגיה', 'גבוה', 'מניה רגילה')
     ]
-    
-    sample_securities = world_securities + israel_securities
     
     try:
         # יצירת טבלאות
@@ -1179,75 +1229,120 @@ def setup_database():
             """
             return result
         
-        # הוספת 20 ניירות ערך אמיתיים (10 מהעולם, 10 מהארץ)
-        print("מוסיף נתוני דוגמה...")
+        # הוספת 20 ניירות ערך אמיתיים עם מחירים מ-Alpha Vantage API
+        print("מוסיף ניירות ערך אמיתיים עם מחירים מ-Alpha Vantage API...")
         
         # כמות ברירת מחדל לכל נייר ערך
         default_amount = 10
         added_count = 0
+        failed_count = 0
         
         # הזרקת מניות מהעולם
         for symbol, name, industry, variance, security_type in world_securities:
             try:
-                price = Broker.update_price(symbol)
-                portfolio_model.add_security(name, default_amount, price, industry, variance, security_type)
-                print(f"נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{price:.2f} ₪")
-                added_count += 1
-            except Exception as e:
-                print(f"שגיאה בהוספת {name}: {e}")
-                # אם יש שגיאה, נוסיף עם מחיר ברירת מחדל
-                try:
-                    default_price = 100.0  # מחיר ברירת מחדל
-                    portfolio_model.add_security(name, default_amount, default_price, industry, variance, security_type)
-                    print(f"נוסף עם מחיר ברירת מחדל: {name} ({symbol}) - {default_amount} יחידות ב-{default_price:.2f} ₪")
+                print(f"מביא מחיר אמיתי עבור {symbol} ({name})...")
+                # קבלת מחיר אמיתי מ-Alpha Vantage API
+                real_price = Broker.update_price(symbol)
+                
+                if real_price and real_price > 0:
+                    portfolio_model.add_security(name, default_amount, real_price, industry, variance, security_type)
+                    print(f"✅ נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{real_price:.2f} ₪ (מחיר אמיתי)")
                     added_count += 1
-                except Exception as e2:
-                    print(f"שגיאה גם עם מחיר ברירת מחדל: {e2}")
+                else:
+                    print(f"❌ לא הצלחתי לקבל מחיר אמיתי עבור {symbol} - מדלג")
+                    failed_count += 1
+                    
+                # עיכוב קטן בין בקשות כדי לא לעבור על מגבלות ה-API
+                time.sleep(0.5)
+                    
+            except Exception as e:
+                print(f"❌ שגיאה בהוספת {name} ({symbol}): {e}")
+                failed_count += 1
         
-        # הזרקת מניות/אג"ח מהארץ
+        # הזרקת מניות ישראליות
         for symbol, name, industry, variance, security_type in israel_securities:
             try:
-                price = Broker.update_price(symbol)
-                portfolio_model.add_security(name, default_amount, price, industry, variance, security_type)
-                print(f"נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{price:.2f} ₪")
-                added_count += 1
-            except Exception as e:
-                print(f"שגיאה בהוספת {name}: {e}")
-                # אם יש שגיאה, נוסיף עם מחיר ברירת מחדל
-                try:
-                    default_price = 50.0  # מחיר ברירת מחדל למניות ישראליות
-                    portfolio_model.add_security(name, default_amount, default_price, industry, variance, security_type)
-                    print(f"נוסף עם מחיר ברירת מחדל: {name} ({symbol}) - {default_amount} יחידות ב-{default_price:.2f} ₪")
+                print(f"מביא מחיר אמיתי עבור {symbol} ({name})...")
+                # קבלת מחיר אמיתי מ-Alpha Vantage API
+                real_price = Broker.update_price(symbol)
+                
+                if real_price and real_price > 0:
+                    portfolio_model.add_security(name, default_amount, real_price, industry, variance, security_type)
+                    print(f"✅ נוסף: {name} ({symbol}) - {default_amount} יחידות ב-{real_price:.2f} ₪ (מחיר אמיתי)")
                     added_count += 1
-                except Exception as e2:
-                    print(f"שגיאה גם עם מחיר ברירת מחדל: {e2}")
+                else:
+                    print(f"❌ לא הצלחתי לקבל מחיר אמיתי עבור {symbol} - מדלג")
+                    failed_count += 1
+                    
+                # עיכוב קטן בין בקשות
+                time.sleep(0.5)
+                    
+            except Exception as e:
+                print(f"❌ שגיאה בהוספת {name} ({symbol}): {e}")
+                failed_count += 1
         
         print("=== סיום הגדרת מסד נתונים מלא ===")
-        result = f"""
-        <h2>הגדרת מסד נתונים - הצליחה!</h2>
-        <p>המסד הנתונים הוגדר בהצלחה עם כל הטבלאות, המשתמשים ו-{added_count} ניירות ערך אמיתיים.</p>
-        <h3>מה שנוצר:</h3>
-        <ul>
-            <li><strong>טבלאות:</strong> users, securities, investments</li>
-            <li><strong>משתמשים:</strong> admin, demo_user</li>
-            <li><strong>ניירות ערך:</strong> {added_count} מניות ואגרות חוב (מחירים בזמן אמת מה-API)</li>
-        </ul>
-        <h3>פרטי התחברות:</h3>
-        <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
-        <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
-        <h3>קישורים מהירים:</h3>
-        <p><a href="/login">התחברות למערכת</a></p>
-        <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
-        <p><a href="/">דף הבית</a></p>
-        """
+        
+        if added_count == 0:
+            result = f"""
+            <h2>⚠️ בעיה בהגדרת מסד נתונים</h2>
+            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                <p><strong>לא הצלחתי להוסיף ניירות ערך עם מחירים אמיתיים!</strong></p>
+                <p>נכשלו {failed_count} ניירות ערך מתוך {len(world_securities) + len(israel_securities)}.</p>
+            </div>
+            
+            <h3>סיבות אפשריות:</h3>
+            <ul>
+                <li>בעיה עם Alpha Vantage API</li>
+                <li>מגבלת קריאות API</li>
+                <li>בעיית חיבור לאינטרנט</li>
+                <li>מפתח API לא תקין</li>
+            </ul>
+            
+            <h3>פתרונות:</h3>
+            <ul>
+                <li>בדוק את חיבור האינטרנט</li>
+                <li>נסה שוב מאוחר יותר</li>
+                <li>בדוק את מפתח Alpha Vantage API</li>
+            </ul>
+            
+            <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
+            """
+        else:
+            result = f"""
+            <h2>✅ הגדרת מסד נתונים - הצליחה!</h2>
+            <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                <p>המסד הנתונים הוגדר בהצלחה עם כל הטבלאות, המשתמשים ו-{added_count} ניירות ערך אמיתיים.</p>
+                {f'<p style="color: #856404;">⚠️ {failed_count} ניירות ערך נכשלו (לא הצלחתי לקבל מחיר אמיתי)</p>' if failed_count > 0 else ''}
+            </div>
+            
+            <h3>מה שנוצר:</h3>
+            <ul>
+                <li><strong>טבלאות:</strong> users, securities, investments</li>
+                <li><strong>משתמשים:</strong> admin, demo_user</li>
+                <li><strong>ניירות ערך:</strong> {added_count} מניות ואגרות חוב (מחירים אמיתיים מ-Alpha Vantage API)</li>
+            </ul>
+            
+            <h3>פרטי התחברות:</h3>
+            <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
+            <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+            
+            <h3>קישורים מהירים:</h3>
+            <p><a href="/login">התחברות למערכת</a></p>
+            <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
+            <p><a href="/update-all-prices">עדכון מחירים</a></p>
+            <p><a href="/">דף הבית</a></p>
+            """
         return result
     except Exception as e:
         print(f"שגיאה בהגדרת מסד נתונים: {str(e)}")
         import traceback
         traceback.print_exc()
         return f"""
-        <h2>שגיאה בהגדרת מסד נתונים</h2>
-        <p>שגיאה: {str(e)}</p>
+        <h2>❌ שגיאה בהגדרת מסד נתונים</h2>
+        <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <p><strong>שגיאה:</strong> {str(e)}</p>
+        </div>
         <p><a href="/db-admin">חזרה לניהול מסד נתונים</a></p>
         """
 

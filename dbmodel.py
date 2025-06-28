@@ -666,6 +666,26 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn.close()
         return f"נייר הערך {name} נמחק בהצלחה"
 
+    def update_security_price(self, name, new_price):
+        """פה אני מעדכן מחיר של נייר ערך ספציפי"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('UPDATE investments SET price = %s WHERE name = %s', (new_price, name))
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                conn.close()
+                return f"מחיר {name} עודכן ל-{new_price:.2f} ₪"
+            else:
+                conn.close()
+                return f"לא נמצא נייר ערך בשם {name}"
+                
+        except Exception as e:
+            print(f"שגיאה בעדכון מחיר עבור {name}: {e}")
+            raise
+
     def create_tables(self):
         """יוצר את כל הטבלאות במסד הנתונים"""
         print("=== התחלת create_tables ===")
