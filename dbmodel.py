@@ -485,22 +485,11 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
     """פה אני שומר את כל המידע של התיק – מניות, אג"חים, מחירים, כמויות וכו'"""
 
     def __init__(self):
-        self.DATABASE_URL = os.environ.get('DATABASE_URL')
+        self.DATABASE_URL = "postgresql://postgres:WaPnQYjKJlhQJKCoNYbZxQRldTRJmTWW@shortline.proxy.rlwy.net:23148/railway"
         print("=== התחלת יצירת PortfolioModel ===")
         print(f"DATABASE_URL מהסביבה: {self.DATABASE_URL}")
-        
-        if not self.DATABASE_URL:
-            error_msg = """
-            
-לא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.
-            
-"""
-            print(error_msg)
-            raise Exception(error_msg)
-        
         print("משתמש ב-PostgreSQL בענן")
         self.use_postgres = True
-            
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 
