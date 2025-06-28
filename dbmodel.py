@@ -489,13 +489,14 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         print("=== התחלת יצירת PortfolioModel ===")
         print(f"DATABASE_URL מהסביבה: {self.DATABASE_URL}")
         
-        if not self.DATABASE_URL:
-            error_msg = "\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n"
-            print(error_msg)
-            raise Exception(error_msg)
+        if self.DATABASE_URL:
+            print("משתמש ב-PostgreSQL בענן")
+            self.use_postgres = True
+        else:
+            print("לא מוגדר DATABASE_URL, משתמש ב-SQLite מקומי")
+            self.use_postgres = False
+            self.db_file = 'investments.db'
         
-        print("משתמש ב-PostgreSQL בענן")
-        self.use_postgres = True
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 
@@ -535,35 +536,61 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             }
 
     def init_db(self):
-        """יוצר את הטבלאות אם צריך (PostgreSQL בלבד)"""
+        """יוצר את הטבלאות אם צריך"""
         print("=== התחלת init_db ===")
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            print("יוצר טבלת משתמשים ב-PostgreSQL")
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(80) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    email VARCHAR(120) UNIQUE,
-                    role VARCHAR(20) DEFAULT 'user',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            print("יוצר טבלת השקעות ב-PostgreSQL")
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS investments (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(120) UNIQUE NOT NULL,
-                    amount INTEGER NOT NULL,
-                    price FLOAT NOT NULL,
-                    industry VARCHAR(120),
-                    variance FLOAT,
-                    security_type VARCHAR(50)
-                )
-            ''')
+            if self.use_postgres:
+                print("יוצר טבלת משתמשים ב-PostgreSQL")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username VARCHAR(80) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        email VARCHAR(120) UNIQUE,
+                        role VARCHAR(20) DEFAULT 'user',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                print("יוצר טבלת השקעות ב-PostgreSQL")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS investments (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(120) UNIQUE NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price FLOAT NOT NULL,
+                        industry VARCHAR(120),
+                        variance FLOAT,
+                        security_type VARCHAR(50)
+                    )
+                ''')
+            else:
+                print("יוצר טבלת משתמשים ב-SQLite")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        email TEXT UNIQUE,
+                        role TEXT DEFAULT 'user',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                print("יוצר טבלת השקעות ב-SQLite")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS investments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT UNIQUE NOT NULL,
+                        amount REAL NOT NULL,
+                        price REAL NOT NULL,
+                        industry TEXT,
+                        variance REAL,
+                        security_type TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
             
             conn.commit()
             conn.close()
@@ -578,7 +605,8 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = %s', (user_id,))
+            placeholder = '%s' if self.use_postgres else '?'
+            cursor.execute(f'SELECT id, username, password_hash, email, role FROM users WHERE id = {placeholder}', (user_id,))
             user = cursor.fetchone()
             conn.close()
             
@@ -601,7 +629,8 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = %s', (username,))
+            placeholder = '%s' if self.use_postgres else '?'
+            cursor.execute(f'SELECT id, username, password_hash, email, role FROM users WHERE username = {placeholder}', (username,))
             user = cursor.fetchone()
             conn.close()
             
@@ -624,9 +653,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            placeholder = '%s' if self.use_postgres else '?'
+            cursor.execute(f'''
                 INSERT INTO users (username, password_hash, email)
-                VALUES (%s, %s, %s)
+                VALUES ({placeholder}, {placeholder}, {placeholder})
             ''', (username, password, email))
                 
             conn.commit()
@@ -642,9 +672,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            placeholder = '%s' if self.use_postgres else '?'
+            cursor.execute(f'''
                 INSERT INTO users (username, password_hash, email, role)
-                VALUES (%s, %s, %s, %s)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
             ''', (username, password, email, role))
                 
             conn.commit()
@@ -693,9 +724,10 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('''
+        placeholder = '%s' if self.use_postgres else '?'
+        cursor.execute(f'''
             INSERT INTO investments (name, amount, price, industry, variance, security_type)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
         ''', (name, amount, price, industry, variance, security_type))
             
         conn.commit()
@@ -734,7 +766,8 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
+        placeholder = '%s' if self.use_postgres else '?'
+        cursor.execute(f'DELETE FROM investments WHERE name = {placeholder}', (name,))
             
         conn.commit()
         conn.close()
@@ -746,7 +779,8 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('UPDATE investments SET price = %s WHERE name = %s', (new_price, name))
+            placeholder = '%s' if self.use_postgres else '?'
+            cursor.execute(f'UPDATE investments SET price = {placeholder} WHERE name = {placeholder}', (new_price, name))
             
             if cursor.rowcount > 0:
                 conn.commit()

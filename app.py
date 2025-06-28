@@ -45,14 +45,45 @@ print("=== התחלת ייבוא ollamamodel ===")
 try:
     from ollamamodel import AI_Agent
     print("=== סיום ייבוא ollamamodel ===")
-except Exception as e:
+except ImportError as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
-    # יצירת מחלקה פשוטה אם האמיתית לא זמינה
+    print("=== יוצר AI_Agent מקומי ===")
+    # יצירת AI_Agent פשוט במקרה של בעיה בייבוא
     class AI_Agent:
         def __init__(self):
-            self.available = False
+            self.model = "llama3.1:8b"
+            self.ollama_available = False
+            print("AI_Agent פשוט נוצר")
+        
         def get_advice(self):
-            return "שירות הבינה המלאכותית אינו זמין כרגע."
+            return """
+ייעוץ השקעות בסיסי:
+
+עקרונות חשובים:
+1. פיזור השקעות - אל תשים הכל על מניה אחת
+2. השקעה לטווח ארוך - סבלנות היא מפתח
+3. מחקר לפני השקעה - הכר את החברות
+4. ניהול סיכונים - השקע רק מה שאתה יכול להפסיד
+
+סוגי השקעות:
+• מניות - פוטנציאל גבוה, סיכון גבוה
+• אגרות חוב - יציבות יותר, תשואה נמוכה יותר
+• קרנות נאמנות - פיזור אוטומטי
+
+זכור: השקעות כרוכות בסיכון!
+            """
+    print("=== סיום ייבוא ollamamodel ===")
+except Exception as e:
+    print(f"שגיאה כללית בייבוא ollamamodel: {str(e)}")
+    # יצירת AI_Agent פשוט במקרה של בעיה
+    class AI_Agent:
+        def __init__(self):
+            self.model = "llama3.1:8b"
+            self.ollama_available = False
+        
+        def get_advice(self):
+            return "ייעוץ השקעות בסיסי זמין"
+    print("=== סיום ייבוא ollamamodel ===")
 
 print("=== התחלת טעינת האפליקציה ===")
 
