@@ -1,74 +1,80 @@
 # Railway Deployment Guide
 
-## Services to Deploy:
+## Environment Variables
 
-1. **PostgreSQL Database** - Data storage
-2. **Web Application** - Flask portfolio management app  
-3. **Ollama AI Service** - AI model with llama3.1:8b
-
-## Deployment Steps:
-
-### Step 1: Prepare Project
-```bash
-git add .
-git commit -m "Ready for Railway deployment"
-git push
-```
-
-### Step 2: Create Railway Project
-
-1. Go to [Railway Dashboard](https://railway.app/dashboard)
-2. Click "New Project"
-3. Select "Deploy from GitHub repo"
-4. Choose your project
-
-### Step 3: Add Services
-
-#### Service 1: PostgreSQL Database
-1. Click "New Service"
-2. Select "Database" → "PostgreSQL"
-3. Railway will create database automatically
-
-#### Service 2: Ollama AI
-1. Click "New Service" 
-2. Select "GitHub Repo"
-3. Use: `ollama/ollama`
-4. Set environment variable: `OLLAMA_HOST=0.0.0.0`
-
-#### Service 3: Web Application
-1. Click "New Service"
-2. Select "GitHub Repo"
-3. Choose your project repository
-
-### Step 4: Configure Environment Variables
-
-In your Web Application service, set these variables:
+Set these in Railway:
 
 ```
-DATABASE_URL=postgresql://postgres:password@host:port/database
-PORT=8080
-OLLAMA_URL=http://ollama-service:11434
+DATABASE_URL=${{inv_db_Postgres.DATABASE_URL}}
+OLLAMA_URL=http://ollama-3cac589c.railway.internal:11434
+PORT=4000
 ```
 
-### Step 5: Deploy
+## Files Structure
 
-1. Railway will automatically deploy all services
-2. Check deployment logs for any errors
-3. Your app will be available at the provided URL
+```
+tomerINV/
+├── app.py                    # Main Flask application
+├── dbmodel.py               # Database models and operations
+├── ollamamodel.py           # AI model integration
+├── requirements.txt         # Python dependencies
+├── Dockerfile              # Web app container
+├── Dockerfile.ollama       # Ollama AI container
+├── railway.json            # Web app deployment config
+├── railway.ollama.json     # Ollama deployment config
+├── templates/              # HTML templates
+└── static/                 # CSS, JS, images
+```
 
-## Troubleshooting:
+## Deployment Steps
 
-- Check Railway deployment logs
-- Verify environment variables are set correctly
-- Ensure all services are running
-- Test database connection
-- Test Ollama AI connection
+### 1. Deploy PostgreSQL Database
+- Create new service in Railway
+- Choose PostgreSQL template
+- Note the DATABASE_URL
 
-## Local Testing:
+### 2. Deploy Web Application
+- Create new service from GitHub repo
+- Set environment variables:
+  ```
+  DATABASE_URL=${{inv_db_Postgres.DATABASE_URL}}
+  PORT=4000
+  ```
+- Railway will use `railway.json` config
+
+### 3. Deploy Ollama AI Service
+- Create new service from same GitHub repo
+- Use `Dockerfile.ollama`
+- Set railway.json to `railway.ollama.json`
+- This will download llama3.1:8b model (4.9GB)
+
+## Local Testing
 
 ```bash
+# Set environment variables
 export DATABASE_URL="your_postgresql_url"
-export PORT=8080
-export OLLAMA_URL="http://localhost:11434"
+export PORT=4000
+export OLLAMA_URL="http://localhost:11434"  # Optional
+
+# Run the application
 python app.py
-``` 
+```
+
+## Troubleshooting
+
+### Health Checks
+- `/ping` - Simple OK response
+- `/health` - Detailed health check
+- `/health-simple` - Basic health check
+
+### Common Issues
+1. **Database connection** - Check DATABASE_URL
+2. **Port conflicts** - Ensure PORT=4000 everywhere
+3. **Ollama connection** - Check OLLAMA_URL
+
+### Logs
+Check Railway logs for:
+- Database connection errors
+- Port binding issues
+- Import errors
+- AI service connectivity 

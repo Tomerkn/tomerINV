@@ -21,6 +21,4 @@ fi
 
 echo "המערכת נעצרה בהצלחה"
 
-DATABASE_URL=postgresql://postgres:WaPnQYjKJlhQJKCoNYbZxQRldTRJmTWW@shortline.proxy.rlwy.net:23148/railway 
-
 git push origin main 

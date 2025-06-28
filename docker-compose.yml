@@ -6,48 +6,41 @@ version: '3.8'
 
 services:
   # Web Application
-  app:
+  web:
     build: .
+    container_name: tomer_portfolio_app
+    restart: unless-stopped
     ports:
-      - "${PORT:-8080}:8080"
+      - "${PORT:-4000}:4000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - OLLAMA_URL=http://ollama:11434
-      - PORT=8080
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+      - PORT=4000
+    volumes:
+      - .:/app
     depends_on:
-      - postgres
-      - ollama
+      - db
     networks:
-      - app-network
+      - portfolio_network
 
   # PostgreSQL Database
-  postgres:
+  db:
     image: postgres:15
+    container_name: tomer_portfolio_db
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=railway
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - app-network
-
-  # Ollama AI Service
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-    networks:
-      - app-network
+      - portfolio_network
 
 volumes:
   postgres_data:
-  ollama_data:
 
 networks:
-  app-network:
-    driver: bridge 
+  portfolio_network: 

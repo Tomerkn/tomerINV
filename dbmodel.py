@@ -1,30 +1,30 @@
 # זה הקובץ שמנהל את כל הנתונים של התיק – שומר, מוסיף, מוחק, מעדכן, הכל
 # עובד אך ורק עם מסד נתונים בענן (PostgreSQL)
 
-import os  # כלי לעבודה עם קבצים וסביבה
-import random  # כלי ליצירת מספרים אקראיים
-import requests  # ייבוא ספריית בקשות HTTP
-import yfinance as yf  # ספרייה שמביאה נתונים מהבורסה האמריקאית
-import time  # ספרייה לעיכובים בין בקשות
-from abc import ABC, abstractmethod  # כלים ליצירת מחלקות בסיס
-import psycopg2
+# ייבוא ספריות
+import os  # ספריה לעבודה עם קבצי מערכת
+import random  # ספריה ליצירת מספרים אקראיים
+import time  # ספריה לעבודה עם זמן
+import requests  # ספריה לבקשות HTTP
+import yfinance as yf  # ספריה לקבלת נתוני מניות מהאינטרנט
+from abc import ABC, abstractmethod  # ספריה למחלקות אבסטרקטיות
 
 print("=== התחלת טעינת dbmodel.py ===")
 print("=== ייבוא ספריות הושלם ===")
 
-# קבוע המרה מדולר לשקל
-USD_TO_ILS_RATE = 3.5
-
-# פה אני מנסה להביא חיבור למסד נתונים בענן (PostgreSQL)
+# בדיקת זמינות PostgreSQL
 try:
-    import psycopg2  # זה בשביל לעבוד עם מסד נתונים בענן
-    POSTGRES_AVAILABLE = True
+    import psycopg2  # ספריית PostgreSQL
     print("ספריות PostgreSQL זמינות")
+    POSTGRES_AVAILABLE = True
 except ImportError:
-    POSTGRES_AVAILABLE = False
     print("ספריות PostgreSQL לא זמינות")
+    POSTGRES_AVAILABLE = False
 
 print("=== סיום בדיקת זמינות PostgreSQL ===")
+
+# קבוע המרה מדולר לשקל
+USD_TO_ILS_RATE = 3.5
 
 
 class Security(ABC):  # פה אני יוצר מחלקה בסיס לכל נייר ערך – כמו תבנית
@@ -500,17 +500,39 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         self.init_db()  # יוצר את הטבלאות אם צריך
 
     def get_connection(self):
-        """פותח חיבור למסד הנתונים PostgreSQL"""
-        print("=== התחלת get_connection ===")
-        
-        print(f"מתחבר ל-PostgreSQL: {self.DATABASE_URL}")
+        """יוצר חיבור למסד הנתונים"""
+        if self.use_postgres:
+            import psycopg2
+            return psycopg2.connect(self.DATABASE_URL)
+        else:
+            import sqlite3
+            return sqlite3.connect(self.db_file)
+
+    @property
+    def db_url(self):
+        """מחזיר את כתובת מסד הנתונים"""
+        return self.DATABASE_URL if self.use_postgres else self.db_file
+
+    def get_connection_info(self):
+        """מחזיר מידע על החיבור למסד הנתונים"""
         try:
-            connection = psycopg2.connect(self.DATABASE_URL)
-            print("חיבור ל-PostgreSQL הצליח")
-            return connection
+            conn = self.get_connection()
+            conn_test = "הצליח" if conn else "נכשל"
+            conn.close()
+            
+            return {
+                'type': 'PostgreSQL' if self.use_postgres else 'SQLite',
+                'url': self.db_url,
+                'status': 'מחובר',
+                'details': f'חיבור למסד נתונים {conn_test}'
+            }
         except Exception as e:
-            print(f"שגיאה בחיבור ל-PostgreSQL: {e}")
-            raise
+            return {
+                'type': 'PostgreSQL' if self.use_postgres else 'SQLite',
+                'url': self.db_url,
+                'status': 'שגיאה בחיבור',
+                'details': f'שגיאה: {str(e)}'
+            }
 
     def init_db(self):
         """יוצר את הטבלאות אם צריך (PostgreSQL בלבד)"""
@@ -614,6 +636,58 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
             print(f"שגיאה ב-create_user: {e}")
             return False
 
+    def create_user_with_role(self, username, password, role='user', email=None):
+        """פה אני יוצר משתמש חדש עם תפקיד"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, email, role)
+                VALUES (%s, %s, %s, %s)
+            ''', (username, password, email, role))
+                
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"שגיאה ב-create_user_with_role: {e}")
+            return False
+
+    def create_default_users(self):
+        """פה אני יוצר משתמשי ברירת מחדל - admin ו-user"""
+        print("=== התחלת יצירת משתמשי ברירת מחדל ===")
+        
+        try:
+            # בדיקה אם המשתמש admin כבר קיים
+            admin_user = self.get_user_by_username('admin')
+            if not admin_user:
+                # יצירת משתמש admin
+                if self.create_user_with_role('admin', 'admin', 'admin', 'admin@portfolio.com'):
+                    print('משתמש מנהל נוצר: admin / admin')
+                else:
+                    print('שגיאה ביצירת משתמש מנהל')
+            else:
+                print('משתמש מנהל כבר קיים')
+            
+            # בדיקה אם המשתמש user כבר קיים
+            regular_user = self.get_user_by_username('user')
+            if not regular_user:
+                # יצירת משתמש רגיל
+                if self.create_user_with_role('user', 'user', 'user', 'user@portfolio.com'):
+                    print('משתמש רגיל נוצר: user / user')
+                else:
+                    print('שגיאה ביצירת משתמש רגיל')
+            else:
+                print('משתמש רגיל כבר קיים')
+                
+            print("=== סיום יצירת משתמשי ברירת מחדל ===")
+            return True
+            
+        except Exception as e:
+            print(f"שגיאה ביצירת משתמשי ברירת מחדל: {e}")
+            return False
+
     def add_security(self, name, amount, price, industry, variance, security_type):
         """פה אני מוסיף מניה/אג"ח חדשה לתיק"""
         conn = self.get_connection()
@@ -693,16 +767,88 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
         print("create_tables הושלם בהצלחה")
 
     def execute_query(self, query, params=None):
-        """מבצע שאילתה כללית במסד הנתונים"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        result = cursor.fetchall()
-        conn.commit()
-        conn.close()
-        return result
+        """פונקציה כללית לביצוע כל סוג של שאילתה - תואמת לגרסה המקורית של SQLite"""
+        conn = self.get_connection()  # מקבל חיבור למסד הנתונים
+        cursor = conn.cursor()  # יוצר סמן לביצוע פעולות
+        
+        try:
+            if params:  # אם יש פרמטרים נוספים לשאילתה
+                cursor.execute(query, params)  # מריץ את השאילתה עם הפרמטרים
+            else:  # אם אין פרמטרים
+                cursor.execute(query)  # מריץ את השאילתה בלי פרמטרים
+
+            # בודק אם זו שאילתת בחירה (SELECT) שמחזירה תוצאות
+            if query.strip().upper().startswith('SELECT'):
+                results = cursor.fetchall()  # מקבל את כל התוצאות
+                conn.close()  # סוגר את החיבור
+                return results  # מחזיר את התוצאות
+            else:  # אם זו פעולת עדכון, הוספה או מחיקה
+                conn.commit()  # שומר את השינויים במסד הנתונים
+                conn.close()  # סוגר את החיבור
+                return None  # לא מחזיר כלום
+        except Exception as e:
+            conn.close()
+            print(f"שגיאה ב-execute_query: {e}")
+            raise
+
+    def get_securities(self):
+        """פונקציה לשליפת כל ניירות הערך מהתיק - תואמת לגרסה המקורית של SQLite"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            # שולף את השם והמחיר של כל ניירות הערך מהטבלה
+            cursor.execute("SELECT name, price FROM investments")
+            results = cursor.fetchall()  # מקבל את כל התוצאות כרשימה
+            conn.close()  # סוגר את החיבור למסד הנתונים
+            return results  # מחזיר את רשימת ניירות הערך
+        except Exception as e:
+            print(f"שגיאה ב-get_securities: {e}")
+            return []
+
+# מחלקות מיוחדות יותר שיורשות מהמחלקות הבסיסיות
+
+class RegularStock(Stock):  # מחלקה למניה רגילה - יורשת מ-Stock
+    """מחלקה למניה רגילה - הסוג הנפוץ ביותר של מניות"""
+    
+    def __init__(self, name, amount=0, price=None):
+        """פונקציה שמתחילה מניה רגילה"""
+        super().__init__(name, amount, price)  # קוראת לפונקציה של מחלקת המניה הבסיסית
+        self.stock_type = "מניה רגילה"
+
+
+class PreferredStock(Stock):  # מחלקה למניה מועדפת - יורשת מ-Stock
+    """מחלקה למניה מועדפת - מניה עם זכויות מיוחדות"""
+    
+    def __init__(self, name, amount=0, price=None):
+        """פונקציה שמתחילה מניה מועדפת"""
+        super().__init__(name, amount, price)  # קוראת לפונקציה של מחלקת המניה הבסיסית
+        self.stock_type = "מניה מועדפת"
+        # מניות מועדפות בדרך כלל נותנות דיבידנד גבוה יותר
+        self.dividend_yield = random.uniform(0.04, 0.08)  # 4-8%
+
+
+class CorporateBond(Bond):  # מחלקה לאג"ח קונצרני - יורשת מ-Bond
+    """מחלקה לאג"ח קונצרני - אג"ח שמנפיקות חברות פרטיות"""
+    
+    def __init__(self, name, amount=0, price=None, coupon_rate=None):
+        """פונקציה שמתחילה אג"ח קונצרני"""
+        super().__init__(name, amount, price, coupon_rate)  # קוראת לפונקציה של מחלקת האג"ח הבסיסית
+        self.bond_type = "אג\"ח קונצרני"
+        # אג"חים קונצרניים בדרך כלל נותנים ריבית גבוהה יותר (יותר סיכון)
+        if coupon_rate is None:
+            self.coupon_rate = random.uniform(0.04, 0.12)  # ריבית 4-12%
+
+
+class GovernmentalBond(Bond):  # מחלקה לאג"ח ממשלתי - יורשת מ-Bond
+    """מחלקה לאג"ח ממשלתי - אג"ח שמנפיקה הממשלה"""
+    
+    def __init__(self, name, amount=0, price=None, coupon_rate=None):
+        """פונקציה שמתחילה אג"ח ממשלתי"""
+        super().__init__(name, amount, price, coupon_rate)  # קוראת לפונקציה של מחלקת האג"ח הבסיסית
+        self.bond_type = "אג\"ח ממשלתי"
+        # אג"חים ממשלתיים בדרך כלל נותנים ריבית נמוכה יותר (פחות סיכון)
+        if coupon_rate is None:
+            self.coupon_rate = random.uniform(0.01, 0.05)  # ריבית 1-5%
+
 
 print("=== סיום טעינת dbmodel.py ===") 

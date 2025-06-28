@@ -1,9 +1,8 @@
 from flask import (
-    Flask, render_template, redirect, url_for, flash, Response, request
+    Flask, render_template, redirect, url_for, flash, Response, request, jsonify
 )
 from flask_login import (
-    LoginManager, UserMixin, login_user, logout_user,
-    login_required, current_user
+    LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 )
 from flask_wtf import FlaskForm
 from wtforms import (
@@ -11,20 +10,17 @@ from wtforms import (
     SelectField
 )
 from wtforms.validators import DataRequired
-from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-import matplotlib
-import matplotlib.pyplot as plt
-import io
-import os
 import logging
-import requests
+import os
 import sys
 import traceback
 from datetime import datetime
 import time
-
-matplotlib.use('Agg')  # משתמש ב-backend שלא דורש GUI
+import io
+import matplotlib
+matplotlib.use('Agg')  # השתמש ב-backend שלא דורש GUI
+import matplotlib.pyplot as plt
 
 print("=== התחלת ייבוא ספריות ===")
 print("=== בדיקת משתני סביבה ===")
@@ -96,17 +92,17 @@ class User(UserMixin):  # קלאס שמייצג משתמש
         self.role = role  # סוג משתמש: 'admin' (מנהל) או 'user' (מפעיל)
     
     def check_password(self, password):  # בודק אם הסיסמה נכונה
-        return check_password_hash(self.password_hash, password)  # מחזיר אמת/שקר
+        return self.password_hash == password  # השוואה פשוטה של הסיסמה
     
     def is_admin(self):  # בודק אם המשתמש הוא מנהל
         return self.role == 'admin'  # מחזיר אמת אם הוא מנהל
 
-# רשימת המשתמשים המורשים במערכת עם סיסמאות מוצפנות
+# רשימת המשתמשים המורשים במערכת עם סיסמאות פשוטות
 USERS = {
     # מנהל עם הרשאות מלאות - יכול לבצע כל פעולה
-    'admin': User('1', 'admin', generate_password_hash('admin'), 'admin'),
+    'admin': User('1', 'admin', 'admin', 'admin'),
     # מפעיל עם הרשאות צפייה בלבד - לא יכול לערוך
-    'user': User('2', 'user', generate_password_hash('user'), 'user')
+    'user': User('2', 'user', 'user', 'user')
 }
 
 @login_manager.user_loader  # פונקציה שמוצאת משתמש לפי מספר זיהוי
@@ -200,6 +196,11 @@ def login():  # פונקציה שמטפלת בכניסה למערכת
         print("יוצר טבלאות במסד הנתונים...")
         portfolio_model.create_tables()
         print("טבלאות נוצרו בהצלחה")
+        
+        # יצירת משתמשי ברירת מחדל
+        print("יוצר משתמשי ברירת מחדל...")
+        portfolio_model.create_default_users()
+        print("משתמשי ברירת מחדל נוצרו בהצלחה")
         
         form = LoginForm()  # יוצר טופס כניסה חדש
         print(f"טופס נוצר, validate_on_submit: {form.validate_on_submit()}")
@@ -584,9 +585,20 @@ def create_tables():
     print("=== התחלת יצירת טבלאות ===")
     try:
         portfolio_model.create_tables()
+        
+        # יצירת משתמשי ברירת מחדל
+        print("יוצר משתמשי ברירת מחדל...")
+        portfolio_model.create_default_users()
+        print("משתמשי ברירת מחדל נוצרו בהצלחה")
+        
         result = """
         <h2>יצירת טבלאות - הצליחה!</h2>
         <p>הטבלאות נוצרו בהצלחה במסד הנתונים.</p>
+        <p>משתמשי ברירת מחדל נוצרו:</p>
+        <ul>
+            <li><strong>admin</strong> - סיסמה: admin (מנהל)</li>
+            <li><strong>user</strong> - סיסמה: user (משתמש רגיל)</li>
+        </ul>
         
         <h3>טבלאות שנוצרו:</h3>
         <ul>
@@ -995,13 +1007,13 @@ def inject_cloud_data():
         
         # הוספת משתמשים לדוגמה
         print("מוסיף משתמשים...")
-        from werkzeug.security import generate_password_hash
-        admin_password_hash = generate_password_hash('admin')
-        demo_password_hash = generate_password_hash('password123')
+        # משתמש בסיסמאות פשוטות כמו שביקשת
+        admin_password_hash = 'admin'
+        user_password_hash = 'user'
         
         users = [
             ('admin', admin_password_hash, 'admin@example.com', 'admin'),
-            ('demo_user', demo_password_hash, 'demo@example.com', 'user')
+            ('user', user_password_hash, 'user@example.com', 'user')
         ]
         
         for user in users:
@@ -1039,7 +1051,7 @@ def inject_cloud_data():
         
         <h3>פרטי התחברות:</h3>
         <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
-        <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+        <p><strong>משתמש:</strong> שם משתמש: user | סיסמה: user</p>
         
         <h3>קישורים מהירים:</h3>
         <p><a href="/login">התחברות למערכת</a></p>
@@ -1101,7 +1113,7 @@ def api_status():
     """נתיב API שמחזיר JSON עם סטטוס האפליקציה"""
     try:
         import os
-        port = os.environ.get('PORT', '8080')
+        port = os.environ.get('PORT', '4000')
         return jsonify({
             'message': 'האפליקציה עובדת!',
             'port': port,
@@ -1179,11 +1191,11 @@ def setup_database():
         
         # הוספת משתמשים
         print("מוסיף משתמשים...")
-        from werkzeug.security import generate_password_hash
         conn = portfolio_model.get_connection()
         cursor = conn.cursor()
-        admin_password_hash = generate_password_hash('admin')
-        demo_password_hash = generate_password_hash('password123')
+        # משתמש בסיסמאות פשוטות כמו שביקשת
+        admin_password_hash = 'admin'
+        demo_password_hash = 'user'
         
         cursor.execute("""
             INSERT INTO users (username, password_hash, email, role)
@@ -1200,7 +1212,7 @@ def setup_database():
                 password_hash = EXCLUDED.password_hash,
                 email = EXCLUDED.email,
                 role = EXCLUDED.role
-        """, ('demo_user', demo_password_hash, 'demo@example.com', 'user'))
+        """, ('user', demo_password_hash, 'demo@example.com', 'user'))
         
         conn.commit()
         conn.close()
@@ -1216,12 +1228,12 @@ def setup_database():
             <h3>מה קיים:</h3>
             <ul>
                 <li><strong>טבלאות:</strong> users, securities, investments</li>
-                <li><strong>משתמשים:</strong> admin, demo_user</li>
+                <li><strong>משתמשים:</strong> admin, user</li>
                 <li><strong>ניירות ערך:</strong> {len(existing_securities)} מניות ואגרות חוב</li>
             </ul>
             <h3>פרטי התחברות:</h3>
             <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
-            <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+            <p><strong>משתמש:</strong> שם משתמש: user | סיסמה: user</p>
             <h3>קישורים מהירים:</h3>
             <p><a href="/login">התחברות למערכת</a></p>
             <p><a href="/portfolio">צפייה בתיק השקעות</a></p>
@@ -1283,12 +1295,14 @@ def setup_database():
         
         print("=== סיום הגדרת מסד נתונים מלא ===")
         
+        total_securities = len(world_securities) + len(israel_securities)
+        
         if added_count == 0:
             result = f"""
             <h2>⚠️ בעיה בהגדרת מסד נתונים</h2>
             <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
                 <p><strong>לא הצלחתי להוסיף ניירות ערך עם מחירים אמיתיים!</strong></p>
-                <p>נכשלו {failed_count} ניירות ערך מתוך {len(world_securities) + len(israel_securities)}.</p>
+                <p>נכשלו {failed_count} ניירות ערך מתוך {total_securities}.</p>
             </div>
             
             <h3>סיבות אפשריות:</h3>
@@ -1319,13 +1333,13 @@ def setup_database():
             <h3>מה שנוצר:</h3>
             <ul>
                 <li><strong>טבלאות:</strong> users, securities, investments</li>
-                <li><strong>משתמשים:</strong> admin, demo_user</li>
+                <li><strong>משתמשים:</strong> admin, user</li>
                 <li><strong>ניירות ערך:</strong> {added_count} מניות ואגרות חוב (מחירים אמיתיים מ-Alpha Vantage API)</li>
             </ul>
             
             <h3>פרטי התחברות:</h3>
             <p><strong>מנהל:</strong> שם משתמש: admin | סיסמה: admin</p>
-            <p><strong>משתמש:</strong> שם משתמש: demo_user | סיסמה: password123</p>
+            <p><strong>משתמש:</strong> שם משתמש: user | סיסמה: user</p>
             
             <h3>קישורים מהירים:</h3>
             <p><a href="/login">התחברות למערכת</a></p>
@@ -1356,7 +1370,7 @@ def check_env():
             'PORT': os.environ.get('PORT', 'לא מוגדר'),
             'OLLAMA_URL': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
             'FLASK_ENV': os.environ.get('FLASK_ENV', 'לא מוגדר'),
-            'PYTHONPATH': os.environ.get('PYTHONPATH', 'לא מוגדר')
+            'SECRET_KEY': os.environ.get('SECRET_KEY', 'לא מוגדר')
         }
         
         # בדיקת חיבור למסד
@@ -1511,7 +1525,7 @@ if __name__ == '__main__':
         print("נתונים לדוגמה נוספו בהצלחה!")
     
     # קבלת פורט מהסביבה (עבור Railway/Heroku)
-    port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 4000))
     print(f"=== האפליקציה רצה על פורט {port} ===")
     
     # הפעלת האפליקציה
