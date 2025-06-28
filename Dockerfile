@@ -26,9 +26,10 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
+ENV PORT=4000
 
-# פותח פורט דינמי (Railway/Heroku יקבעו)
-EXPOSE $PORT
+# פותח פורט 4000 (Railway יעביר את הפורט הנכון דרך משתנה סביבה)
+EXPOSE 4000
 
 # מגדיר את הפקודה שרצה כשהאפליקציה מתחילה
 # משתמש ב-gunicorn לפריסה בענן
