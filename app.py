@@ -30,9 +30,6 @@ print(f"PORT: {PORT}")
 print(f"OLLAMA_URL: {OLLAMA_URL}")
 print("=== סיום בדיקת משתני סביבה ===")
 
-if not DATABASE_URL:
-    raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n")
-
 # מביאים הקלסים שיצרנו בקבצים אחרים
 print("=== התחלת ייבוא dbmodel ===")
 try:
@@ -1242,8 +1239,7 @@ def check_env():
             'PORT': os.environ.get('PORT', 'לא מוגדר'),
             'OLLAMA_URL': os.environ.get('OLLAMA_URL', 'לא מוגדר'),
             'FLASK_ENV': os.environ.get('FLASK_ENV', 'לא מוגדר'),
-            'PYTHONPATH': os.environ.get('PYTHONPATH', 'לא מוגדר'),
-            'db_url': portfolio_model.db_url
+            'PYTHONPATH': os.environ.get('PYTHONPATH', 'לא מוגדר')
         }
         
         # בדיקת חיבור למסד

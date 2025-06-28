@@ -486,16 +486,28 @@ class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל 
 
     def __init__(self):
         self.DATABASE_URL = os.environ.get('DATABASE_URL')
+        print("=== התחלת יצירת PortfolioModel ===")
+        print(f"DATABASE_URL מהסביבה: {self.DATABASE_URL}")
+        
         if not self.DATABASE_URL:
-            raise Exception("\n\nלא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.\n\n")
-
+            error_msg = """
+            
+לא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.
+            
+"""
+            print(error_msg)
+            raise Exception(error_msg)
+        
+        print("משתמש ב-PostgreSQL בענן")
         self.use_postgres = True
+            
         print("=== סיום יצירת PortfolioModel ===")
         self.init_db()  # יוצר את הטבלאות אם צריך
 
     def get_connection(self):
         """פותח חיבור למסד הנתונים PostgreSQL"""
         print("=== התחלת get_connection ===")
+        
         print(f"מתחבר ל-PostgreSQL: {self.DATABASE_URL}")
         try:
             connection = psycopg2.connect(self.DATABASE_URL)
