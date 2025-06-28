@@ -50,7 +50,12 @@ try:
     print("=== סיום ייבוא ollamamodel ===")
 except Exception as e:
     print(f"שגיאה בייבוא ollamamodel: {str(e)}")
-    AI_Agent = None
+    # יצירת מחלקה פשוטה אם האמיתית לא זמינה
+    class AI_Agent:
+        def __init__(self):
+            self.available = False
+        def get_advice(self):
+            return "שירות הבינה המלאכותית אינו זמין כרגע."
 
 print("=== התחלת טעינת האפליקציה ===")
 
@@ -1012,13 +1017,17 @@ def health_check():
     """נתיב לבדיקת בריאות האפליקציה - נדרש ל-Railway"""
     try:
         # בדיקה בסיסית שהאפליקציה עובדת - ללא חיבור למסד נתונים
+        from datetime import datetime
+        import os
+        port = os.environ.get('PORT', '4000')
         return {
             'status': 'healthy',
             'message': 'Application is running',
             'timestamp': datetime.now().isoformat(),
-            'port': PORT
+            'port': port
         }, 200
     except Exception as e:
+        from datetime import datetime
         return {
             'status': 'unhealthy',
             'error': str(e),
