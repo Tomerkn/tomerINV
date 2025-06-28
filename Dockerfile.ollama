@@ -1,0 +1,44 @@
+# Dockerfile for Ollama with pre-installed models
+FROM ollama/ollama:latest
+
+# Set environment variables
+ENV OLLAMA_HOST=0.0.0.0:11434
+ENV OLLAMA_MODELS=/root/.ollama/models
+
+# Create directory for models
+RUN mkdir -p /root/.ollama/models
+
+# Copy startup script
+COPY <<EOF /start-ollama.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting Ollama server..."
+ollama serve &
+
+# Wait for server to start
+echo "⏳ Waiting for Ollama server to start..."
+sleep 10
+
+# Pull required models
+echo "📥 Pulling llama3.1:8b model..."
+ollama pull llama3.1:8b
+
+echo "✅ Ollama is ready!"
+
+# Keep the server running
+wait
+EOF
+
+# Make script executable
+RUN chmod +x /start-ollama.sh
+
+# Expose port
+EXPOSE 11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:11434/api/tags || exit 1
+
+# Start Ollama
+CMD ["/start-ollama.sh"] 
