@@ -292,11 +292,19 @@ def clear_session():
 @login_required  # דקורטור שדורש שהמשתמש יהיה מחובר
 def index():  # פונקציה שמציגה את דף הבית
     try:
+        print("=== התחלת נתיב index ===")
+        print(f"משתמש מחובר: {current_user.is_authenticated}")
+        
         if current_user.is_authenticated:
+            print("מפנה לתיק השקעות")
             return redirect(url_for('portfolio'))
+        
+        print("מציג דף הבית")
         return render_template('index.html')
     except Exception as e:
-        logger.error(f"שגיאה בנתיב הראשי: {str(e)}")
+        print(f"שגיאה בנתיב הראשי: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return "שגיאה בטעינת הדף", 500
 
 @app.route('/portfolio')  # נתיב לדף התיק ההשקעות המלא
