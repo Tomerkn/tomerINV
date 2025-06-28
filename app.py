@@ -27,7 +27,7 @@ matplotlib.use('Agg')  # משתמש ב-backend שלא דורש GUI
 
 print("=== התחלת ייבוא ספריות ===")
 print("=== בדיקת משתני סביבה ===")
-DATABASE_URL = "postgresql://postgres:WaPnQYjKJlhQJKCoNYbZxQRldTRJmTWW@shortline.proxy.rlwy.net:23148/railway"
+DATABASE_URL = os.environ.get('DATABASE_URL')
 PORT = int(os.environ.get('PORT', 4000))
 OLLAMA_URL = os.environ.get('OLLAMA_URL')
 print(f"DATABASE_URL: {DATABASE_URL}")
