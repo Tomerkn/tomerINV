@@ -17,68 +17,113 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
     """מחלקת הבינה המלאכותית לייעוץ השקעות - מתחברת לשירות Ollama"""
     
     def __init__(self):
-        """אתחול הסוכן והתחברות לשירות Ollama"""
-        print("=== התחלת אתחול AI_Agent ===")
-        # קבלת כתובת שרת Ollama מהסביבה או שימוש בברירת מחדל
+        """Initialize AI agent and connect to Ollama service"""
+        print("=== Starting AI_Agent initialization ===")
+        # Get Ollama server URL from environment or use default
         self.ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
-        print(f"OLLAMA_URL מהסביבה: {self.ollama_url}")
-        self.model_name = 'llama3.1:8b'  # שם המודל של הבינה המלאכותית
-        print(f"מודל שנבחר: {self.model_name}")
-        # בדיקה אם Ollama זמין ופועל
+        print(f"OLLAMA_URL from environment: {self.ollama_url}")
+        # Switch to smaller, faster model
+        self.model_name = 'llama3.2:3b'  # Smaller model - 3-4x faster
+        print(f"Selected model: {self.model_name}")
+        
+        # Create persistent client that stays in memory
+        self.client = None
+        self.model_loaded = False  # Flag if model is loaded
+        
+        # Check if Ollama is available and running
         self.ollama_available = self._check_ollama_availability()
         if not self.ollama_available:
-            print("Ollama לא זמין - נשתמש בייעוץ פשוט")
-        print(f"אתחול AI - Ollama זמין: {self.ollama_available}")
-        print("=== סיום אתחול AI_Agent ===")
+            print("Ollama not available - using simple advice")
+        else:
+            # Pre-load model to memory
+            print("Loading model to memory...")
+            self._preload_model()
+        
+        print(f"AI initialization - Ollama available: {self.ollama_available}")
+        print("=== AI_Agent initialization complete ===")
+    
+    def _preload_model(self):
+        """Pre-load model to memory for fast responses"""
+        try:
+            print(f"Loading model {self.model_name} to memory...")
+            self.client = ollama.Client(host=self.ollama_url)
+            
+            # Ensure model exists
+            models = self.client.list()
+            model_names = [model['name'] for model in models['models']]
+            
+            if self.model_name not in model_names:
+                print(f"Downloading model {self.model_name}...")
+                self.client.pull(self.model_name)
+                print(f"Model {self.model_name} downloaded successfully!")
+            
+            # Send short question to load model to memory
+            print("Warming up model...")
+            response = self.client.chat(
+                model=self.model_name,
+                messages=[{"role": "user", "content": "hello"}],
+                options={"temperature": 0.7, "num_ctx": 4096}
+            )
+            
+            if response and len(response['message']['content']) > 0:
+                self.model_loaded = True
+                print("Model loaded successfully to memory! "
+                      "Responses will be fast now.")
+            else:
+                print("Model did not load properly")
+                
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            self.model_loaded = False
     
     def _check_ollama_availability(self):
-        """בודק אם שרת Ollama זמין ופועל"""
+        """Check if Ollama server is available and running"""
         try:
-            print("🔍 בודק זמינות Ollama...")
-            print(f"🌐 מנסה להתחבר ל-Ollama בכתובת: {self.ollama_url}")
-            # מנסה להתחבר לשרת Ollama עם timeout של 3 שניות
+            print("Checking Ollama availability...")
+            print(f"Trying to connect to Ollama at: {self.ollama_url}")
+            # Try to connect to Ollama server with 3 second timeout
             response = requests.get(f"{self.ollama_url}/api/tags", timeout=3)
-            print(f"📡 תגובה מ-Ollama: {response.status_code}")
-            if response.status_code == 200:  # אם התגובה תקינה
-                print("✅ Ollama זמין ופועל!")
+            print(f"Response from Ollama: {response.status_code}")
+            if response.status_code == 200:  # If response is OK
+                print("Ollama is available and running!")
                 return True
             else:
-                print(f"❌ Ollama הגיב עם קוד שגיאה: {response.status_code}")
+                print(f"Ollama responded with error code: {response.status_code}")
                 return False
         except requests.exceptions.ConnectionError:
-            print("שגיאת חיבור ל-Ollama: לא ניתן להתחבר")
+            print("Connection error to Ollama: cannot connect")
             return False
         except requests.exceptions.Timeout:
-            print("פסק זמן בחיבור ל-Ollama: החיבור איטי מדי")
+            print("Timeout connecting to Ollama: connection too slow")
             return False
         except Exception as e:
-            print(f"⚠️ שגיאה כללית בבדיקת Ollama: {str(e)}")
+            print(f"General error checking Ollama: {str(e)}")
             return False
     
     def get_investment_advice(self, portfolio_data, risk_profile):
         """פה אני מקבל ייעוץ השקעות מהבינה המלאכותית - כמו לדבר עם מומחה"""
         try:
-            print(f"📊 get_investment_advice נקרא עם {len(portfolio_data)} ניירות ערך")
+            print(f"get_investment_advice נקרא עם {len(portfolio_data)} ניירות ערך")
             # אם Ollama לא זמין, משתמש בייעוץ פשוט
             if not self.ollama_available:
-                print("⚠️ Ollama לא זמין, מחזיר ייעוץ סטטי")
+                print("Ollama לא זמין, מחזיר ייעוץ סטטי")
                 return self._get_professional_advice_for_portfolio(portfolio_data, risk_profile)
             
-            print("📝 יוצר prompt עבור Ollama...")
+            print("יוצר prompt עבור Ollama...")
             # פה אני מכין הודעה מפורטת לבינה המלאכותית
             prompt = self._create_professional_investment_prompt(portfolio_data, risk_profile)
             
-            print("📤 שולח ל-Ollama...")
+            print("שולח ל-Ollama...")
             # פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה
             response = self._send_to_ollama(prompt)
             
-            print("✨ מעצב את התשובה...")
+            print("מעצב את התשובה...")
             # פה אני מחזיר את הייעוץ בעברית פשוטה
             return self._format_professional_advice(response)
             
         except Exception as e:
             # אם משהו לא עובד, אני מחזיר ייעוץ בסיסי
-            print(f"❌ שגיאה בייעוץ השקעות: {str(e)}")
+            print(f"שגיאה בייעוץ השקעות: {str(e)}")
             return self._get_professional_advice_for_portfolio(portfolio_data, risk_profile)
     
     def _get_professional_advice_for_portfolio(self, portfolio_data, risk_profile):
@@ -164,54 +209,56 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
             return "פיזור התיק סביר, המשך עם תכנית השקעה עקבית"
     
     def _create_professional_investment_prompt(self, portfolio_data, risk_profile):
-        """יוצר prompt מקצועי בסגנון של חברות השקעות מובילות"""
+        """יוצר prompt באנגלית עבור בינה מלאכותית"""
         
-        # התחלת הprompt עם הוראות לAI
-        prompt = f"""אתה יועץ השקעות מקצועי בחברת השקעות מובילת כמו Vanguard או Fidelity. 
-כתב ייעוץ מקצועי, ברור ומעשי בעברית.
-
-👤 פרופיל לקוח:
-• סובלנות סיכון: {risk_profile}
-
-💼 תיק השקעות נוכחי:"""
+        # חישוב נתונים בסיסיים
+        total_value = sum(item['price'] * item['amount'] for item in portfolio_data)
+        num_securities = len(portfolio_data)
         
-        total_value = 0  # משתנה לסיכום ערך כולל
-        industries = {}  # מילון לאחסון ענפים
-        
-        # עבור על כל נייר ערך ובנה את הprompt
+        # מציאת החזקות הגדולות
+        holdings = []
         for item in portfolio_data:
-            value = item['price'] * item['amount']  # חישוב ערך נייר הערך
-            total_value += value  # הוסף לסך הכולל
-            industry = item.get('industry', 'לא מוגדר')  # קבל ענף
-            
-            if industry not in industries:
-                industries[industry] = 0  # אתחל אם לא קיים
-            industries[industry] += value  # הוסף ערך לענף
-            
-            # הוסף פירוט נייר הערך לprompt
-            prompt += f"""
-• {item['name']}: {item['amount']} יח' × ₪{item['price']} = ₪{value:,.0f}
-  (תחום: {industry}, סוג: {item.get('security_type', 'מניה')})"""
+            value = item['price'] * item['amount']
+            holdings.append({
+                'name': item['name'],
+                'value': value,
+                'industry': item.get('industry', 'Other')
+            })
         
-        # סיכום והוראות סופיות לAI
-        prompt += f"""
+        holdings = sorted(holdings, key=lambda x: x['value'], reverse=True)[:5]
+        
+        # ספירת ענפים
+        industries = {}
+        for item in portfolio_data:
+            industry = item.get('industry', 'Other')
+            industries[industry] = industries.get(industry, 0) + 1
+        
+        # בניית רשימת החזקות
+        holdings_list = []
+        for h in holdings:
+            holdings_list.append(f"{h['name']} ({h['industry']}) - {h['value']:,.0f} ILS")
+        
+        # prompt באנגלית מפורט יותר
+        prompt = f"""Analyze this investment portfolio and provide recommendations:
 
-💰 ערך כולל: ₪{total_value:,.0f}
+PORTFOLIO OVERVIEW:
+- Total value: {total_value:,.0f} ILS
+- Number of assets: {num_securities}
+- Risk tolerance: {risk_profile}
 
-כיועץ מקצועי, ספק ניתוח מובנה ובהיר:
+TOP HOLDINGS:
+{chr(10).join(['- ' + h for h in holdings_list])}
 
-1. הערכת התיק הנוכחי (פיזור, איזון, ריכוז)
-2. זיהוי סיכונים עיקריים
-3. המלצות ספציפיות לשיפור
-4. אסטרטגיה המתאימה לפרופיל הסיכון
+MAIN SECTORS:
+{', '.join([f"{k}: {v} assets" for k, v in list(industries.items())[:3]])}
 
-⚠️ חשוב מאוד:
-- כתב בעברית פשוטה אך מקצועית
-- אל תכלול קישורים או לינקים מכל סוג
-- אל תכלול תגיות HTML או markdown
-- רק טקסט פשוט עם נקודות ברורות
-- הימנע מביטויים עמומים - תן המלצות קונקרטיות
-- אורך מקסימלי: 800 מילים"""
+Please provide:
+1. Portfolio analysis (diversification, risk level)
+2. Specific recommendations for each major holding
+3. Overall portfolio recommendations
+4. Suggestions for improvement
+
+Keep response under 300 words, professional tone."""
         
         return prompt
     
@@ -224,57 +271,62 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
             model_names = [model['name'] for model in models['models']]  # חלץ שמות
             
             if self.model_name not in model_names:  # אם המודל לא קיים
-                print(f"⬇️ מוריד מודל {self.model_name}...")
+                print(f"⬇️ Downloading model {self.model_name}...")
                 client.pull(self.model_name)  # הורד את המודל
-                print(f"✅ מודל {self.model_name} הורד בהצלחה!")
+                print(f"✅ Model {self.model_name} downloaded successfully!")
             else:
-                print(f"✅ מודל {self.model_name} כבר קיים")
+                print(f"✅ Model {self.model_name} already exists")
             return True
         except Exception as e:
-            print(f"❌ שגיאה בהורדת מודל: {str(e)}")
+            print(f"❌ Error downloading model: {str(e)}")
             return False
 
     def _send_to_ollama(self, prompt):
         """פה אני שולח את ההודעה לבינה המלאכותית ומקבל תשובה"""
         try:
-            print(f"📤 שולח prompt ל-Ollama: {prompt[:150]}...")
+            print(f"שולח prompt ל-Ollama: {prompt[:80]}...")
             
-            # השתמש רק ב-ollama client עם timeout ארוך יותר
-            client = ollama.Client(host=self.ollama_url)  # יצור client לOllama
-            print("🔗 יוצר חיבור ל-Ollama...")
+            # השתמש בclient הקבוע שכבר טעון במודל
+            if not self.client or not self.model_loaded:
+                print("מודל לא טעון, יוצר client חדש...")
+                self.client = ollama.Client(host=self.ollama_url)
+            else:
+                print("משתמש במודל הטעון - תגובה מהירה!")
             
-            # שלח את הprompt ל-AI
-            response = client.chat(
+            # שלח את הprompt ל-AI עם פרמטרים מהירים
+            response = self.client.chat(
                 model=self.model_name,  # שם המודל
                 messages=[
                     {"role": "user", "content": prompt}  # ההודעה למודל
                 ],
                 options={
-                    "temperature": 0.7,  # רמת יצירתיות (0-2)
-                    "top_p": 0.9,  # גיוון תשובות
-                    "num_ctx": 8192  # הקשר רחב יותר - זיכרון ארוך
+                    "temperature": 0.3,  # פחות יצירתיות - יותר מהיר
+                    "top_p": 0.5,  # פחות גיוון - יותר מהיר
+                    "num_ctx": 1024,  # זיכרון קצר יותר - הרבה יותר מהיר
+                    "num_predict": 200,  # מגביל את אורך התשובה
+                    "stop": ["\n\n\n"]  # עוצר אחרי 3 שורות ריקות
                 }
             )
             
             advice = response['message']['content']  # חלץ את התשובה
-            print(f"📥 קיבלתי תשובה מ-Ollama: {len(advice)} תווים")
+            print(f"קיבלתי תשובה מ-Ollama: {len(advice)} תווים")
             
             # בדיקה שהתשובה אמיתית ולא שגיאה
-            if len(advice) < 50 or "שגיאה" in advice.lower():
-                print("⚠️ תשובה קצרה או עם שגיאה, מחזיר ייעוץ בסיסי")
+            if len(advice) < 20 or "שגיאה" in advice.lower():
+                print("תשובה קצרה או עם שגיאה, מחזיר ייעוץ בסיסי")
                 return self._get_fallback_advice()
             
             return advice
             
         except Exception as exc:
-            print(f"❌ שגיאה ב-Ollama: {exc}")
+            print(f"שגיאה ב-Ollama: {exc}")
             return self._get_fallback_advice()
     
     def _get_fallback_advice(self):
         """ייעוץ בסיסי אם יש בעיה עם Ollama"""
-        return """📊 ניתוח תיק השקעות
+        return """ניתוח תיק השקעות
 
-💡 המלצות מקצועיות לתיק שלך:
+המלצות מקצועיות לתיק שלך:
 
 1. בדיקת פיזור
    התיק שלך מכיל מספר נכסים שונים. זה טוב, אבל כדאי לוודא שיש גיוון מספק בין תחומים שונים.
@@ -294,7 +346,7 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
    • שמור רזרבה של 3-6 חודשי הוצאות
    • שקול יעוץ מקצועי לתכנון מס
 
-⚠️ זה ייעוץ כללי המבוסס על עקרונות השקעה מוכחים."""
+זה ייעוץ כללי המבוסס על עקרונות השקעה מוכחים."""
     
     def _format_professional_advice(self, raw_advice):
         """מעצב את הייעוץ לטקסט פשוט וקריא - ללא HTML ואמוג'ים וקישורים"""
@@ -310,7 +362,7 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
             clean_text = re.sub(r'www\.[^\s]+', '', clean_text)  # קישורי www
             
             # הסרת כל האמוג'ים והסימנים
-            emojis_pattern = r'[📊📈📉💡⚠️🚨💰🔍📋🎯✅❌⭐🌟💎🔥🎉🚀📌🎯💼📈📊⚡🔔🔄🎨🎪🏆🌈☀️🌙⭐]'
+            emojis_pattern = r'[📈💡⚠️🚨💰🔍📋🎯✅❌⭐💎🔥🎉🚀📌🎯💼📈📊⚡🔔🔄🎨🎪🏆🌈☀️🌙⭐]'
             clean_text = re.sub(emojis_pattern, '', clean_text)
             
             # הסרת כל תגיות HTML כולל h6, h5, strong וכו'
@@ -376,7 +428,7 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
             
         except Exception:
             # אם יש בעיה, החזר טקסט בסיסי
-            print("❌ שגיאה בעיצוב הייעוץ")
+            print("❌ Error formatting advice")
             return """📊 התיק שלך נראה בסדר. יש לך מספר השקעות שונות, וזה טוב.
             
 💡 המלצות:
@@ -442,4 +494,4 @@ class AI_Agent:  # סוכן בינה מלאכותית לייעוץ השקעות 
             # נתן ייעוץ כללי
             return self.get_simple_advice()
 
-print("=== סיום טעינת ollamamodel.py ===") 
+print("=== AI_Agent initialization complete ===") 

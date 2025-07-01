@@ -821,7 +821,7 @@ def get_cached_advice(portfolio_data):
     import time
     
     current_time = time.time()
-    cache_duration = 300  # 5 דקות
+    cache_duration = 1800  # 30 דקות
     
     # בדיקה אם יש cache תקף
     if advice_cache['advice'] and advice_cache['timestamp']:
@@ -904,15 +904,15 @@ def start_background_ai_advice(portfolio_data):
 def advice():
     """דף ייעוץ השקעות"""
     try:
-        print("🔍 נכנס לפונקציה advice")
+        print("נכנס לפונקציה advice")
         
         # בדיקת authentication מפורטת
         if not current_user.is_authenticated:
-            print("❌ משתמש לא מחובר - מפנה לדף התחברות")
+            print("משתמש לא מחובר - מפנה לדף התחברות")
             flash('אנא התחבר כדי לצפות בייעוץ', 'warning')
             return redirect(url_for('login'))
         
-        print(f"✅ משתמש מחובר: {current_user.username}")
+        print(f"משתמש מחובר: {current_user.username}")
         
         # טען נתוני תיק
         portfolio_data = get_cached_portfolio()
@@ -920,7 +920,7 @@ def advice():
         # בדוק אם יש ייעוץ ב-cache (שנטען ברקע)
         cached_advice = get_cached_advice(portfolio_data)
         if cached_advice:
-            print("✅ מצאתי ייעוץ ב-cache - מציג על הדף")
+            print("מצאתי ייעוץ ב-cache - מציג על הדף")
             return render_template('advice.html', 
                                  advice=cached_advice, 
                                  from_cache=True, 
@@ -931,20 +931,20 @@ def advice():
         start_background_ai_advice(portfolio_data)
         
         # נסה לקבל ייעוץ AI ישירות עם timeout ארוך יותר
-        print("🤖 מנסה לקבל ייעוץ AI ישירות...")
+        print("מנסה לקבל ייעוץ AI ישירות...")
         try:
             ai_advice = get_ai_advice_async(portfolio_data)
             if ai_advice and len(ai_advice.strip()) > 100:
-                print("🎉 הצלחתי לקבל ייעוץ AI ישירות - מציג על הדף!")
+                print("הצלחתי לקבל ייעוץ AI ישירות - מציג על הדף!")
                 update_advice_cache(ai_advice, portfolio_data)
                 return render_template('advice.html', 
                                      advice=ai_advice, 
                                      from_cache=False, 
                                      loading_ai=False)
             else:
-                print("⚠️ ייעוץ AI קצר מדי או ריק")
+                print("ייעוץ AI קצר מדי או ריק")
         except Exception as e:
-            print(f"❌ שגיאה בקבלת ייעוץ AI ישירות: {e}")
+            print(f"שגיאה בקבלת ייעוץ AI ישירות: {e}")
         
         # אם לא הצליח, חכה יותר זמן לטעינה ברקע
         import time
@@ -952,7 +952,7 @@ def advice():
             time.sleep(1)
             cached_advice = get_cached_advice(portfolio_data)
             if cached_advice:
-                print(f"✅ ייעוץ AI נטען ברקע אחרי {i+1} שניות!")
+                print(f"ייעוץ AI נטען ברקע אחרי {i+1} שניות!")
                 return render_template('advice.html', 
                                      advice=cached_advice, 
                                      from_cache=True, 
@@ -1566,11 +1566,50 @@ def update_lqd_name():
 
 
 
+def prepare_ai_in_background():
+    """מכין את ה-AI ברקע כדי שהתגובות יהיו מהירות"""
+    try:
+        print("מכין בינה מלאכותית ברקע...")
+        import threading
+        import time
+        
+        def warm_up_ai():
+            try:
+                time.sleep(3)  # חכה שהשרת יתחיל
+                if 'ai_agent' in globals() and ai_agent:
+                    print("מחמם את ה-AI עם שאלת דוגמה...")
+                    # שלח שאלה פשוטה כדי שהמודל יטען לזיכרון
+                    sample_portfolio = [
+                        {'name': 'אפל', 'amount': 10, 'price': 150, 
+                         'industry': 'טכנולוגיה', 'security_type': 'מניה'}
+                    ]
+                    result = ai_agent.get_advice(sample_portfolio)
+                    if result and len(result) > 50:
+                        print("בינה מלאכותית מוכנה ומהירה!")
+                    else:
+                        print("בינה מלאכותית לא מוכנה")
+                else:
+                    print("בינה מלאכותית לא זמינה")
+            except Exception as e:
+                print(f"שגיאה בהכנת AI: {e}")
+        
+        # הרץ ברקע
+        thread = threading.Thread(target=warm_up_ai)
+        thread.daemon = True
+        thread.start()
+        
+    except Exception as e:
+        print(f"שגיאה בהכנת AI ברקע: {e}")
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print(f" מפעיל את השרת על פורט {port}")
     print(" מערכת ניהול תיק השקעות - גרסה מקומית")
     print(f" היכנס ל: http://localhost:{port}")
     print(" משתמשים: admin/admin (מנהל) או user/user (משתמש)")
+    
+    # הכן את ה-AI ברקע לתגובות מהירות
+    prepare_ai_in_background()
+    
     app.run(host='0.0.0.0', port=port, debug=True)
 
