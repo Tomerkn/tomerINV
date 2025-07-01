@@ -1,0 +1,9 @@
+# version_lock.txt - קובץ נעילת גרסאות
+# נוצר אוטומטית על ידי fix_versions.py
+# אל תשנה קובץ זה ידנית!
+
+FLASK_VERSION=2.2.5
+WERKZEUG_VERSION=2.2.3
+FLASK_WTF_VERSION=1.1.1
+LAST_CHECK=2.2.5
+STATUS=LOCKED

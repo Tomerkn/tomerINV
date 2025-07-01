@@ -2,10 +2,11 @@
 # מערכת ניהול תיק השקעות עם MySQL ו-Ollama
 
 # Flask - הבסיס של האתר
-Flask==2.3.3
+Flask==2.2.5
 Flask-Login==0.6.3
 Flask-WTF==1.1.1
 WTForms==3.0.1
+Werkzeug==2.2.3
 
 # MySQL מקומי
 mysql-connector-python==8.0.33
