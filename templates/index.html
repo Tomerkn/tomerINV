@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}דף הבית - מערכת ניהול השקעות{% endblock %}
+{% block title %}דף הבית - מערכת השקעות ישראלית{% endblock %}
 {% block content %}
 <h2 class="mb-4">סקירה כללית</h2>
 
@@ -8,7 +8,7 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h5 class="card-title">ערך תיק כולל</h5>
-                <h3 class="text-primary">₪{{ "{:,.2f}".format(total_assets) }}</h3>
+                <h3 class="text-primary">₪{{ "{:,.2f}".format(total_value) }}</h3>
             </div>
         </div>
     </div>
@@ -51,21 +51,21 @@
                 <div class="d-grid gap-2">
                     {% if current_user.is_admin() %}
                     <a href="{{ url_for('add_security') }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> הוסף נייר ערך חדש
+                        <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">add_circle</span> הוסף נייר ערך חדש
                     </a>
                     {% endif %}
                     <a href="{{ url_for('portfolio') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-briefcase"></i> צפה בתיק המלא
+                        <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">business_center</span> צפה בתיק המלא
                     </a>
                     <a href="{{ url_for('graph') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-graph-up"></i> צפה בגרפים
+                        <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">trending_up</span> צפה בגרפים
                     </a>
-                    <a href="{{ url_for('clear_session') }}" class="btn btn-outline-warning">
-                        <i class="bi bi-box-arrow-right"></i> התנתק וחזור להתחברות
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-warning">
+                        <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">logout</span> התנתק וחזור להתחברות
                     </a>
                     {% if not current_user.is_admin() %}
                     <div class="alert alert-info mt-2">
-                        <small><i class="bi bi-info-circle"></i> במצב צפייה בלבד</small>
+                        <small><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-left: 8px;">info</span> במצב צפייה בלבד</small>
                     </div>
                     {% endif %}
                 </div>

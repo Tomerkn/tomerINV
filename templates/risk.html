@@ -1,53 +1,101 @@
 {% extends 'base.html' %}
-{% block title %}ניהול סיכונים - מערכת ניהול השקעות{% endblock %}
+{% block title %}ניהול סיכונים - מערכת השקעות ישראלית{% endblock %}
 {% block content %}
-<h2 class="mb-4">ניהול סיכונים</h2>
-
-{% if portfolio %}
-<div class="alert alert-info text-end" role="alert">
-    <strong>איך אנחנו מחשבים סיכון:</strong> המערכת בודקת כמה מסוכן כל ענף ומה הסיכוי לשינויים
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><span class="material-icons" style="font-size: 32px; vertical-align: middle; margin-left: 8px;">security</span> ניהול הסיכונים שלך</h2>
+        <p class="lead text-muted">כאן תראה כמה מסוכנות ההשקעות שלך ותקבל עצות איך לשמור על הכסף</p>
+    </div>
 </div>
 
+{% if portfolio and risk_summary %}
+<!-- סיכום מהיר של רמת הסיכון -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h5 class="text-danger"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-left: 8px; color: #dc3545;">cancel</span> סיכון גבוה</h5>
+                <h3 class="text-danger">{{ "%.0f"|format(risk_summary.high_risk.percentage) }}%</h3>
+                <p class="small text-muted">₪{{ "{:,.0f}".format(risk_summary.high_risk.value) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h5 class="text-warning"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-left: 8px; color: #ffc107;">warning</span> סיכון בינוני</h5>
+                <h3 class="text-warning">{{ "%.0f"|format(risk_summary.medium_risk.percentage) }}%</h3>
+                <p class="small text-muted">₪{{ "{:,.0f}".format(risk_summary.medium_risk.value) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h5 class="text-success"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-left: 8px; color: #198754;">check_circle</span> סיכון נמוך</h5>
+                <h3 class="text-success">{{ "%.0f"|format(risk_summary.low_risk.percentage) }}%</h3>
+                <p class="small text-muted">₪{{ "{:,.0f}".format(risk_summary.low_risk.value) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- הערכה אישית -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert {% if risk_summary.high_risk.percentage > 60 %}alert-danger{% elif risk_summary.high_risk.percentage > 30 %}alert-warning{% else %}alert-success{% endif %}">
+            {% if risk_summary.high_risk.percentage > 60 %}
+            יש לך תיק עם סיכון גבוה - זה יכול להביא תוצאות טובות יותר, אבל גם יותר תנודתיות. זו בסוף החלטה שלך :)
+            {% elif risk_summary.high_risk.percentage > 30 %}
+            יש לך קצת יותר מדי סיכון. זה בסדר אם אין לך לחץ, אבל תחשוב גם על דברים בטוחים יותר.
+            {% else %}
+            נראה טוב! יש לך איזון יפה. המשך ככה!
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- טבלת ההשקעות עם רמת הסיכון -->
 <div class="row">
-    <div class="col-md-12">
-        <div class="card mb-4">
+    <div class="col-12">
+        <div class="card">
             <div class="card-header">
-                <h5>ניתוח סיכונים לפי נייר ערך</h5>
+                <h5 class="mb-0"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-left: 8px;">list_alt</span> מה יש לך בתיק</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>שם נייר הערך</th>
-                                <th>מחיר</th>
-                                <th>כמות</th>
-                                <th>שווי</th>
-                                <th>אחוז מהתיק</th>
-                                <th>ענף</th>
-                                <th>רמת סיכון</th>
+                                <th>מה קנית</th>
+                                <th>כמה שווה</th>
+                                <th>באיזה תחום</th>
+                                <th>כמה מסוכן</th>
+                                <th>מה זה אומר</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in portfolio %}
+                            {% for security in portfolio %}
                             <tr>
-                                <td>{{ item.name }}</td>
-                                <td>₪{{ "{:,.2f}".format(item.price) }}</td>
-                                <td>{{ "{:,.2f}".format(item.amount) }}</td>
-                                <td>₪{{ "{:,.2f}".format(item.value) }}</td>
-                                <td>{{ "{:.1f}".format(item.percentage) }}%</td>
-                                <td>{{ item.industry }}</td>
+                                <td><strong>{{ security.name }}</strong></td>
+                                <td>₪{{ "{:,.0f}".format(security.value) }}</td>
+                                <td>{{ security.industry or 'לא מוגדר' }}</td>
                                 <td>
-                                    {% if item.risk_level %}
-                                        {% if item.risk_level <= 2 %}
-                                            <span class="badge bg-success">{{ "{:.1f}".format(item.risk_level) }}</span>
-                                        {% elif item.risk_level <= 6 %}
-                                            <span class="badge bg-warning">{{ "{:.1f}".format(item.risk_level) }}</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">{{ "{:.1f}".format(item.risk_level) }}</span>
-                                        {% endif %}
+                                    {% if security.risk_level >= 5 %}
+                                        <span class="badge bg-danger"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">cancel</span> גבוה</span>
+                                    {% elif security.risk_level >= 3 %}
+                                        <span class="badge bg-warning"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</span> בינוני</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">לא מוגדר</span>
+                                        <span class="badge bg-success"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</span> נמוך</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if security.risk_level >= 5 %}
+                                        עלול לקפוץ הרבה למעלה ולמטה
+                                    {% elif security.risk_level >= 3 %}
+                                        יכול לזוז למעלה ולמטה
+                                    {% else %}
+                                        בטוח יחסית
                                     {% endif %}
                                 </td>
                             </tr>
@@ -60,62 +108,19 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>סולם סיכונים לפי ענפים</h5>
-            </div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>ענף</th>
-                            <th>רמת סיכון (1-6)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>טכנולוגיה</td><td><span class="badge bg-danger">6</span></td></tr>
-                        <tr><td>תחבורה</td><td><span class="badge bg-warning">5</span></td></tr>
-                        <tr><td>אנרגיה</td><td><span class="badge bg-warning">4</span></td></tr>
-                        <tr><td>בריאות</td><td><span class="badge bg-warning">4</span></td></tr>
-                        <tr><td>תעשייה</td><td><span class="badge bg-info">3</span></td></tr>
-                        <tr><td>פיננסים</td><td><span class="badge bg-info">3</span></td></tr>
-                        <tr><td>נדלן</td><td><span class="badge bg-success">2</span></td></tr>
-                        <tr><td>צריכה פרטית</td><td><span class="badge bg-success">1</span></td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>המלצות ניהול סיכונים</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <strong>תפזר את הכסף:</strong> אל תשים הכל בענף אחד, תפזר בין כמה תחומים
-                    </li>
-                    <li class="list-group-item">
-                        <strong>ערבב סוגי השקעות:</strong> קח מניות בחברות, אגח של הממשלה ואגח של חברות
-                    </li>
-                    <li class="list-group-item">
-                        <strong>שמור על איזון בסיכון:</strong> תערבב השקעות בטוחות עם כאלה שיותר מסוכנות
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
 
 
 {% else %}
-<div class="alert alert-info text-center">
-    <h4>אין נתונים לניתוח סיכונים</h4>
-    <p>הוסף ניירות ערך לתיק ההשקעות שלך כדי לראות ניתוח סיכונים</p>
-    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך</a>
+<!-- אין נתונים -->
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <h4><span class="material-icons" style="font-size: 32px; vertical-align: middle; margin-left: 8px;">help_outline</span> אין עדיין השקעות בתיק</h4>
+            <p>כדי לראות ניתוח סיכונים, קודם צריך להוסיף השקעות לתיק שלך.</p>
+            <a href="{{ url_for('add_security') }}" class="btn btn-primary"><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">add</span> הוסף השקעה</a>
+        </div>
+    </div>
 </div>
 {% endif %}
+
 {% endblock %}

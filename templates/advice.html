@@ -1,39 +1,318 @@
 {% extends 'base.html' %}
-{% block title %}התייעץ עם הבינה - מערכת ניהול השקעות{% endblock %}
-{% block content %}
-<h2 class="mb-4">התייעץ עם הבינה המלאכותית</h2>
 
-<!-- AI Advice Section -->
+{% block title %}ייעוץ השקעות מקצועי - מערכת ניהול תיק השקעות{% endblock %}
+
+{% block head %}
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.card {
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">
+    <span class="material-icons" style="font-size: 32px; vertical-align: middle; margin-right: 8px;">smart_toy</span>
+    ייעוץ השקעות מקצועי
+</h2>
+
+<!-- אינדיקטור סטטוס -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info d-flex align-items-center">
+            <span class="material-icons me-2">info</span>
+            <div id="status-message">
+                {% if from_cache %}
+                    ייעוץ מעודכן זמין (עודכן לאחרונה)
+                {% elif loading_ai %}
+                    טוען ייעוץ מותאם אישית לתיק שלך...
+                {% else %}
+                    ייעוץ חדש זמין
+                {% endif %}
+            </div>
+            <button class="btn btn-sm btn-outline-primary ms-auto" onclick="refreshAdvice()" id="refresh-btn">
+                <span class="material-icons" style="font-size: 16px;">refresh</span>
+                רענן ייעוץ
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- עקרונות השקעה בסיסיים -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">
-                    <i class="bi bi-robot"></i> ייעוץ AI לתיק שלך
+                    <span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">school</span>
+                    5 עקרונות זהב להשקעה מוצלחת
                 </h5>
-                
-                {% if advice %}
-                <div class="alert alert-info">
-                    <h6><i class="bi bi-lightbulb"></i> ייעוץ מקצועי:</h6>
-                    <div class="mt-3">
-                        {{ advice | nl2br | safe }}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <span class="material-icons text-success me-2" style="margin-top: 2px;">check_circle</span>
+                            <div>
+                                <strong>1. השקע לטווח ארוך</strong>
+                                <p class="mb-0 text-muted small">זמן הוא החבר הכי טוב של המשקיע. ההיסטוריה מלמדת שהשוק עולה לאורך זמן.</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                {% else %}
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    לא ניתן לקבל ייעוץ כרגע. אנא וודא שהשירות Ollama פועל.
-                </div>
-                {% endif %}
-                
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="bi bi-info-circle"></i>
-                        הייעוץ מבוסס על התיק הנוכחי שלך ועל ניתוח סיכונים מתקדם.
-                    </small>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <span class="material-icons text-success me-2" style="margin-top: 2px;">check_circle</span>
+                            <div>
+                                <strong>2. פזר את הסיכונים</strong>
+                                <p class="mb-0 text-muted small">אל תשים את כל הביצים בסל אחד. גיוון מפחית סיכונים.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <span class="material-icons text-success me-2" style="margin-top: 2px;">check_circle</span>
+                            <div>
+                                <strong>3. התחל מוקדם</strong>
+                                <p class="mb-0 text-muted small">הריבית דריבית עובדת לטובתך כשמתחילים מוקדם.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <span class="material-icons text-success me-2" style="margin-top: 2px;">check_circle</span>
+                            <div>
+                                <strong>4. אל תנסה לתזמן את השוק</strong>
+                                <p class="mb-0 text-muted small">זמן בשוק חשוב יותר מתזמון השוק.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <div class="d-flex align-items-start">
+                            <span class="material-icons text-success me-2" style="margin-top: 2px;">check_circle</span>
+                            <div>
+                                <strong>5. שמור על קור רוח בתקופות קשות</strong>
+                                <p class="mb-0 text-muted small">התנודות הן חלק טבעי מההשקעה. היסטורית, המשקיע הסבלני מרוויח.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ייעוץ אישי AI -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">psychology</span> 
+                    ניתוח מותאם לתיק שלך
+                </h5>
+                
+                <!-- אינדיקטור טעינה -->
+                <div id="loading-indicator" class="text-center my-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">טוען...</span>
+                    </div>
+                    <p class="mt-2">מנתח את התיק ומכין המלצות אישיות...</p>
+                </div>
+                
+                <div id="advice-content" class="alert alert-primary">
+                    <h6><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 8px;">lightbulb</span> ייעוץ מותאם לתיק שלך:</h6>
+                    <div class="mt-3" style="white-space: pre-line;">{{ advice }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- הבנת סיכונים -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <span class="material-icons text-warning" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">warning</span>
+                    הבנת סיכוני השקעה
+                </h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-center mb-2">
+                                <span class="material-icons text-danger" style="font-size: 30px;">trending_down</span>
+                            </div>
+                            <h6 class="text-center">סיכון שוק</h6>
+                            <p class="small text-muted text-center">המחירים יכולים לרדת בגלל אירועים כלכליים. פיזור ההשקעות מפחית את הסיכון.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-center mb-2">
+                                <span class="material-icons text-warning" style="font-size: 30px;">schedule</span>
+                            </div>
+                            <h6 class="text-center">סיכון אינפלציה</h6>
+                            <p class="small text-muted text-center">אם התשואה נמוכה מהאינפלציה, הכוח הקנייה יורד. השקעה במניות מגנה לאורך זמן.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-center mb-2">
+                                <span class="material-icons text-info" style="font-size: 30px;">business</span>
+                            </div>
+                            <h6 class="text-center">סיכון חברה</h6>
+                            <p class="small text-muted text-center">חברות יכולות להיכשל. השקעה בקרנות או ETF מפזרת את הסיכון.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- המלצות מעשיות -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    <span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">thumb_up</span>
+                    דברים שכדאי לעשות
+                </h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><span class="material-icons text-success me-2" style="font-size: 16px;">check</span>תעביר כל חודש סכום קבוע להשקעות</li>
+                    <li class="mb-2"><span class="material-icons text-success me-2" style="font-size: 16px;">check</span>תחסוך קצת כסף בצד למקרי חירום</li>
+                    <li class="mb-2"><span class="material-icons text-success me-2" style="font-size: 16px;">check</span>קנה קרנות מגוונות במקום מניות בודדות</li>
+                    <li class="mb-2"><span class="material-icons text-success me-2" style="font-size: 16px;">check</span>תעקוב אחרי הכסף שלך, אבל לא כל יום</li>
+                    <li class="mb-2"><span class="material-icons text-success me-2" style="font-size: 16px;">check</span>תלמד קצת על השקעות לפני שאתה קונה</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title text-danger">
+                    <span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">thumb_down</span>
+                    דברים שמומלץ להימנע מהם
+                </h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><span class="material-icons text-danger me-2" style="font-size: 16px;">close</span>אל תשים את כל הכסף על מניה אחת</li>
+                    <li class="mb-2"><span class="material-icons text-danger me-2" style="font-size: 16px;">close</span>אל תמכור הכל כשהבורסה יורדת</li>
+                    <li class="mb-2"><span class="material-icons text-danger me-2" style="font-size: 16px;">close</span>אל תשקיע כסף שאתה צריך בשנה הקרובה</li>
+                    <li class="mb-2"><span class="material-icons text-danger me-2" style="font-size: 16px;">close</span>אל תבדוק את המחירים כל יום</li>
+                    <li class="mb-2"><span class="material-icons text-danger me-2" style="font-size: 16px;">close</span>אל תקנה דברים שאתה לא מבין</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- הודעה חשובה -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <h6><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 8px;">info</span> הודעה חשובה:</h6>
+            <p class="mb-0">זהו ייעוץ כללי ולא המלצה אישית. כל השקעה כרוכה בסיכון, כולל אובדן הקרן. היסטוריה עברה אינה ערובה לביצועים עתידיים. 
+            מומלץ להתייעץ עם יועץ השקעות מוסמך לפני קבלת החלטות השקעה.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// פונקציה לרענון ייעוץ
+function refreshAdvice() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    const statusMessage = document.getElementById('status-message');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const adviceContent = document.getElementById('advice-content');
+    
+    // הצג אינדיקטור טעינה
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>מרענן...';
+    statusMessage.textContent = 'מכין ייעוץ חדש...';
+    
+    // בקש ייעוץ חדש
+    fetch('/refresh-advice')
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            }
+        })
+        .catch(error => {
+            console.error('שגיאה ברענון ייעוץ:', error);
+            statusMessage.textContent = 'שגיאה ברענון ייעוץ';
+        })
+        .finally(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<span class="material-icons" style="font-size: 16px;">refresh</span> רענן ייעוץ';
+        });
+}
+
+// בדיקה אוטומטית לייעוץ AI חדש
+function checkForFreshAdvice() {
+    const statusMessage = document.getElementById('status-message');
+    const adviceContent = document.getElementById('advice-content');
+    
+    fetch('/get-fresh-advice')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.advice) {
+                // עדכן תוכן
+                const adviceDiv = adviceContent.querySelector('div[style*="white-space"]');
+                if (adviceDiv) {
+                    adviceDiv.textContent = data.advice;
+                }
+                
+                // עדכן סטטוס
+                if (data.from_cache) {
+                    statusMessage.textContent = 'ייעוץ מותאם אישית זמין!';
+                } else {
+                    statusMessage.textContent = 'ייעוץ חדש התקבל!';
+                }
+                
+                // הוסף אנימציה
+                adviceContent.style.animation = 'pulse 0.5s';
+                setTimeout(() => {
+                    adviceContent.style.animation = '';
+                }, 500);
+            }
+        })
+        .catch(error => {
+            console.error('שגיאה בבדיקת ייעוץ חדש:', error);
+        });
+}
+
+// אתחל רענון אוטומטי אם טוען ייעוץ AI
+const statusText = document.getElementById('status-message').textContent;
+if (statusText.includes('טוען') || statusText.includes('מתכונן')) {
+    // בדוק כל 10 שניות לייעוץ חדש
+    const checkInterval = setInterval(checkForFreshAdvice, 10000);
+    
+    // עצור בדיקה אחרי 2 דקות
+    setTimeout(() => {
+        clearInterval(checkInterval);
+        document.getElementById('status-message').textContent = 'ייעוץ זמין';
+    }, 120000);
+    
+    // בדיקה ראשונית אחרי 5 שניות
+    setTimeout(checkForFreshAdvice, 5000);
+}
+</script>
 {% endblock %}

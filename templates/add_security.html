@@ -1,54 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}הוספת נייר ערך{% endblock %}
+{% block title %}הוסף נייר ערך{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid">
     <div class="row">
-        <div class="col-md-8 mx-auto">
+        <div class="col-md-8">
             <div class="card">
-                <div class="card-header text-center">
-                    <h4>הוספת נייר ערך חדש</h4>
+                <div class="card-header bg-success text-white">
+                    <h4><span class="material-icons" style="font-size: 24px; vertical-align: middle; margin-left: 8px;">add_circle</span> הוסף נייר ערך חדש</h4>
                 </div>
                 <div class="card-body">
                     <form method="POST">
                         {{ form.hidden_tag() }}
                         
-                        <div class="form-group mb-3">
+                        <!-- בחירה מרשימה מלאה של S&P 500 -->
+                        <div class="mb-3">
                             {{ form.stock_dropdown.label(class="form-label") }}
-                            {{ form.stock_dropdown(class="form-control") }}
+                            {{ form.stock_dropdown(class="form-select", id="stockDropdown") }}
+                            <div class="form-text">בחר מניה מרשימת S&P 500 המלאה או אגרות חוב</div>
                         </div>
                         
-                        <div class="form-group mb-3">
+                        <hr>
+                        
+                        <!-- פרטי נייר הערך -->
+                        <div class="mb-3">
                             {{ form.name.label(class="form-label") }}
-                            {{ form.name(class="form-control") }}
+                            {{ form.name(class="form-control", readonly=True) }}
                         </div>
                         
-                        <div class="form-group mb-3">
-                            {{ form.amount.label(class="form-label") }}
-                            {{ form.amount(class="form-control") }}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.amount.label(class="form-label") }}
+                                    {{ form.amount(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.security_type.label(class="form-label") }}
+                                    {{ form.security_type(class="form-select") }}
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="form-group mb-3">
-                            {{ form.industry.label(class="form-label") }}
-                            {{ form.industry(class="form-control") }}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.industry.label(class="form-label") }}
+                                    {{ form.industry(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.variance.label(class="form-label") }}
+                                    {{ form.variance(class="form-control", step="0.01") }}
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="form-group mb-3">
-                            {{ form.variance.label(class="form-label") }}
-                            {{ form.variance(class="form-control") }}
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            {{ form.security_type.label(class="form-label") }}
-                            {{ form.security_type(class="form-control") }}
-                        </div>
-                        
-                        <div class="text-center">
-                            {{ form.submit(class="btn btn-primary") }}
-                            <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">ביטול</a>
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-success btn-lg") }}
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-left: 8px;">info</span> מידע כללי</h5>
+                </div>
+                <div class="card-body">
+                    <h6>איך להוסיף נייר ערך:</h6>
+                    <ol>
+                        <li><strong>בחר מהרשימה</strong> - כל מניות S&P 500 וחלק מאגרות החוב</li>
+                        <li><strong>מלא פרטים</strong> - כמות, ענף, רמת סיכון</li>
+                        <li><strong>הוסף</strong> - הנייר ערך יתווסף לתיק</li>
+                    </ol>
+                    
+                    <hr>
+                    
+                    <h6>קטגוריות זמינות:</h6>
+                    <ul class="small">
+                        <li><strong>טכנולוגיה</strong> - Apple, Microsoft, Google</li>
+                        <li><strong>פיננסים</strong> - JPMorgan, Visa, Goldman Sachs</li>
+                        <li><strong>בריאות</strong> - UnitedHealth, Eli Lilly</li>
+                        <li><strong>צריכה</strong> - Walmart, Coca-Cola, Nike</li>
+                        <li><strong>אנרגיה</strong> - Exxon, Chevron</li>
+                        <li><strong>נדלן</strong> - American Tower, Prologis</li>
+                        <li><strong>אגרות חוב</strong> - ממשלתיות וקונצרניות</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>טיפים:</h6>
+                    <ul class="small">
+                        <li>פזר השקעות בין ענפים שונים</li>
+                        <li>מניות טכנולוגיה - סיכון גבוה, פוטנציאל גבוה</li>
+                        <li>אגרות חוב - יציבות רבה יותר</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -56,18 +108,45 @@
 </div>
 
 <script>
-// JavaScript למלא אוטומטית את שדה השם כשנבחרת מניה מהרשימה
-document.addEventListener('DOMContentLoaded', function() {
-    const stockDropdown = document.getElementById('stock_dropdown');
-    const nameField = document.getElementById('name');
-    
-    if (stockDropdown && nameField) {
-        stockDropdown.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value && selectedOption.value !== '') {
-                nameField.value = selectedOption.text;
-            }
-        });
+// מילוי אוטומטי כשבוחרים מהרשימה
+document.getElementById('stockDropdown').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value && selectedOption.value !== '') {
+        // מלא את שם החברה
+        document.getElementById('name').value = selectedOption.text;
+        
+        // הצע ענף וסיכון לפי קטגוריה
+        const symbol = selectedOption.value;
+        const industryField = document.getElementById('industry');
+        const varianceField = document.getElementById('variance');
+        
+        // מיפוי אוטומטי של ענפים וסיכונים
+        if (['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'ADBE', 'CRM', 'NFLX', 'ORCL', 'CSCO', 'INTC', 'QCOM'].includes(symbol)) {
+            industryField.value = 'טכנולוגיה';
+            varianceField.value = '0.15';
+        } else if (['JPM', 'V', 'MA', 'BAC', 'WFC', 'MS', 'SCHW', 'SPGI', 'BLK'].includes(symbol)) {
+            industryField.value = 'פיננסים';
+            varianceField.value = '0.12';
+        } else if (['UNH', 'LLY', 'ABBV', 'MRK', 'ABT', 'TMO', 'AMGN', 'MDT'].includes(symbol)) {
+            industryField.value = 'בריאות';
+            varianceField.value = '0.10';
+        } else if (['WMT', 'PG', 'HD', 'COST', 'PEP', 'KO', 'MCD', 'NKE'].includes(symbol)) {
+            industryField.value = 'צריכה פרטית';
+            varianceField.value = '0.08';
+        } else if (['XOM', 'CVX', 'NEE'].includes(symbol)) {
+            industryField.value = 'אנרגיה';
+            varianceField.value = '0.14';
+        } else if (['PLD', 'AMT', 'CCI', 'EQIX'].includes(symbol)) {
+            industryField.value = 'נדלן';
+            varianceField.value = '0.09';
+        } else if (['TLT', 'IEF', 'SHY', 'LQD', 'HYG', 'EMB'].includes(symbol)) {
+            industryField.value = 'אגרות חוב';
+            varianceField.value = '0.05';
+        } else {
+            // ברירת מחדל לענפים אחרים
+            industryField.value = 'תעשייה';
+            varianceField.value = '0.10';
+        }
     }
 });
 </script>

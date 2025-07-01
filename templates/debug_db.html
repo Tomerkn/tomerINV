@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}בדיקת מסד נתונים{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h4><i class="bi bi-database"></i> בדיקת מסד נתונים</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    מידע כללי
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>סוג מסד נתונים:</strong> {{ debug_info.database_type }}</p>
+                                    <p><strong>סה"כ ניירות ערך:</strong> {{ debug_info.total_securities }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if debug_info.securities %}
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>ניירות ערך במסד (10 ראשונים):</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>שם</th>
+                                            <th>כמות</th>
+                                            <th>מחיר</th>
+                                            <th>ענף</th>
+                                            <th>סוג</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for security in debug_info.securities %}
+                                        <tr>
+                                            <td>{{ security.name }}</td>
+                                            <td>{{ security.amount }}</td>
+                                            <td>{{ "%.2f" | format(security.price) }} ₪</td>
+                                            <td>{{ security.industry or 'לא מוגדר' }}</td>
+                                            <td>{{ security.security_type or 'לא מוגדר' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> אין ניירות ערך במסד הנתונים
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> חזור לתיק
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

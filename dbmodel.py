@@ -1,1013 +1,407 @@
-# זה הקובץ שמנהל את כל הנתונים של התיק – שומר, מוסיף, מוחק, מעדכן, הכל
-# עובד אך ורק עם מסד נתונים בענן (PostgreSQL)
+# -*- coding: utf-8 -*-
+"""
+dbmodel.py - מודל מסד הנתונים למערכת ניהול תיק השקעות
+כאן מוגדרות כל הפונקציות לעבודה עם מסד הנתונים
+"""
 
-# ייבוא ספריות
-import os  # ספריה לעבודה עם קבצי מערכת
-import random  # ספריה ליצירת מספרים אקראיים
-import time  # ספריה לעבודה עם זמן
-import requests  # ספריה לבקשות HTTP
-import yfinance as yf  # ספריה לקבלת נתוני מניות מהאינטרנט
-from abc import ABC, abstractmethod  # ספריה למחלקות אבסטרקטיות
+import os  # לעבודה עם משתני סביבה
+import sqlite3  # לעבודה עם SQLite
+import requests  # לבקשות HTTP למחירי מניות
 
-print("=== התחלת טעינת dbmodel.py ===")
-print("=== ייבוא ספריות הושלם ===")
+# קבועים
+USD_TO_ILS_RATE = 3.5  # שער המרה מדולר לשקל קבוע
 
-# בדיקת זמינות PostgreSQL
+# בדיקת PostgreSQL - האם הספרייה מותקנת
 try:
-    import psycopg2  # ספריית PostgreSQL
-    print("ספריות PostgreSQL זמינות")
-    POSTGRES_AVAILABLE = True
+    import psycopg2  # ספרייה לחיבור PostgreSQL
+    POSTGRESQL_AVAILABLE = True  # PostgreSQL זמין
 except ImportError:
-    print("ספריות PostgreSQL לא זמינות")
-    POSTGRES_AVAILABLE = False
-
-print("=== סיום בדיקת זמינות PostgreSQL ===")
-
-# קבוע המרה מדולר לשקל
-USD_TO_ILS_RATE = 3.5
+    POSTGRESQL_AVAILABLE = False  # PostgreSQL לא זמין
 
 
-class Security(ABC):  # פה אני יוצר מחלקה בסיס לכל נייר ערך – כמו תבנית
-    """פה אני יוצר תבנית לכל נייר ערך – מניה או אג"ח"""
+class PortfolioModel:
+    """מודל מסד הנתונים לניהול תיק השקעות - תומך PostgreSQL ו-SQLite"""
     
-    def __init__(self, name, price=None):
-        """פה אני מתחיל נייר ערך חדש עם שם ומחיר"""
-        self.name = name  # שם הנייר ערך (למשל "אפל" או "אג"ח ממשלתי")
-        self.amount = 0  # כמה יחידות יש לי (בהתחלה 0)
-        if price is None:
-            # אם לא נתנו מחיר, אני יוצר מחיר מדומה
-            self.price = random.uniform(10, 100)
+    def __init__(self):
+        """אתחול מסד נתונים - PostgreSQL לשרת או SQLite למקומי"""
+        self.db_path = "investments.db"  # נתיב קובץ SQLite מקומי
+        
+        # קבלת URL מסד נתונים מהסביבה (לשרת)
+        database_url = os.environ.get('DATABASE_URL')
+        
+        if database_url:  # אם יש URL - עובדים עם PostgreSQL בשרת
+            self.use_postgresql = True
+            self.database_url = database_url
+        else:  # אחרת עובדים עם SQLite במחשב המקומי
+            self.use_postgresql = False
+        
+        self.init_db()  # אתחול טבלאות במסד הנתונים
+    
+    def get_connection(self):
+        """יצירת חיבור למסד הנתונים - PostgreSQL או SQLite"""
+        if self.use_postgresql:  # אם עובדים עם PostgreSQL
+            try:
+                from urllib.parse import urlparse  # לפירוק URL
+                result = urlparse(self.database_url)  # פרק את ה-URL
+                
+                # התחבר ל-PostgreSQL עם הפרמטרים מה-URL
+                conn = psycopg2.connect(
+                    database=result.path[1:],  # שם מסד הנתונים (ללא /)
+                    user=result.username,  # שם משתמש
+                    password=result.password,  # סיסמה
+                    host=result.hostname,  # כתובת שרת
+                    port=result.port  # פורט
+                )
+                return conn
+            except Exception as e:
+                print(f"❌ שגיאה בחיבור ל-PostgreSQL: {e}")
+                return None
+        else:  # אם עובדים עם SQLite
+            try:
+                conn = sqlite3.connect(self.db_path)  # התחבר לקובץ SQLite
+                conn.row_factory = sqlite3.Row  # החזר תוצאות כ-dictionary
+                return conn
+            except Exception as e:
+                print(f"❌ שגיאה בחיבור ל-SQLite: {e}")
+                return None
+    
+    def init_db(self):
+        """יצירת טבלאות במסד הנתונים - משתמשים וניירות ערך"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:  # אם אין חיבור
+            return
+        
+        cursor = conn.cursor()  # יצר cursor לביצוע פקודות SQL
+        
+        if self.use_postgresql:  # אם PostgreSQL
+            # יצירת טבלת משתמשים עם PostgreSQL syntax
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) DEFAULT 'user'
+                )
+            """)
+            
+            # יצירת טבלת ניירות ערך עם PostgreSQL syntax
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS securities (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    symbol VARCHAR(10),
+                    amount DECIMAL(15,2) DEFAULT 0,
+                    price DECIMAL(15,2) DEFAULT 0,
+                    industry VARCHAR(50),
+                    variance VARCHAR(20),
+                    security_type VARCHAR(50)
+                )
+            """)
+        else:  # אם SQLite
+            # יצירת טבלת משתמשים עם SQLite syntax
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT DEFAULT 'user'
+                )
+            """)
+            
+            # יצירת טבלת ניירות ערך עם SQLite syntax
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS securities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    symbol TEXT,
+                    amount REAL DEFAULT 0,
+                    price REAL DEFAULT 0,
+                    industry TEXT,
+                    variance TEXT,
+                    security_type TEXT
+                )
+            """)
+        
+        conn.commit()  # שמור שינויים
+        cursor.close()  # סגור cursor
+        conn.close()  # סגור חיבור
+    
+    def create_tables(self):
+        """אליאס למתודה init_db - יצירת טבלאות במסד הנתונים"""
+        return self.init_db()
+    
+    def create_default_users(self):
+        """יצירת משתמשי ברירת מחדל - admin ו-user"""
+        conn = self.get_connection()  # קבל חיבור
+        if not conn:
+            return
+        
+        cursor = conn.cursor()  # יצר cursor
+        
+        # בדיקה אם המשתמש admin קיים כבר
+        if self.use_postgresql:  # PostgreSQL syntax
+            cursor.execute("SELECT id FROM users WHERE username = %s", ('admin',))
+        else:  # SQLite syntax
+            cursor.execute("SELECT id FROM users WHERE username = ?", ('admin',))
+        
+        if not cursor.fetchone():  # אם admin לא קיים
+            if self.use_postgresql:  # הוסף admin ב-PostgreSQL
+                query = "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)"
+                cursor.execute(query, ('admin', 'admin', 'admin'))
+            else:  # הוסף admin ב-SQLite
+                query = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"
+                cursor.execute(query, ('admin', 'admin', 'admin'))
+        
+        # בדיקה אם המשתמש user קיים כבר
+        if self.use_postgresql:  # PostgreSQL syntax
+            cursor.execute("SELECT id FROM users WHERE username = %s", ('user',))
+        else:  # SQLite syntax
+            cursor.execute("SELECT id FROM users WHERE username = ?", ('user',))
+        
+        if not cursor.fetchone():  # אם user לא קיים
+            if self.use_postgresql:  # הוסף user ב-PostgreSQL
+                query = "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)"
+                cursor.execute(query, ('user', 'user', 'user'))
+            else:  # הוסף user ב-SQLite
+                query = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"
+                cursor.execute(query, ('user', 'user', 'user'))
+        
+        conn.commit()  # שמור שינויים
+        cursor.close()  # סגור cursor
+        conn.close()  # סגור חיבור
+    
+    def get_user_by_username(self, username):
+        """קבלת משתמש לפי שם משתמש - לצורך התחברות"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return None
+        
+        cursor = conn.cursor()  # יצר cursor
+        
+        if self.use_postgresql:  # PostgreSQL query
+            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        else:  # SQLite query
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        
+        user = cursor.fetchone()  # קבל תוצאה ראשונה
+        
+        if user:  # אם נמצא משתמש
+            if self.use_postgresql:  # המר ל-dictionary ב-PostgreSQL
+                user_dict = dict(zip([desc[0] for desc in cursor.description], user))
+            else:  # ב-SQLite זה כבר dictionary
+                user_dict = dict(user)
         else:
-            self.price = price  # המחיר שנתנו לי
+            user_dict = None  # אם לא נמצא
+        
+        cursor.close()  # סגור cursor
+        conn.close()  # סגור חיבור
+        return user_dict  # החזר את נתוני המשתמש
     
-    @abstractmethod
-    def calculate_value(self):
-        """פה אני מחשב כמה שווה הנייר ערך – כל סוג מחשב אחרת"""
-        pass
-    
-    def update_price(self, new_price):
-        """פה אני מעדכן את המחיר של הנייר ערך"""
-        self.price = new_price
-    
-    def __str__(self):
-        """פה אני מחזיר תיאור יפה של הנייר ערך"""
-        return f"{self.name} - מחיר: {self.price:.2f}, כמות: {self.amount}"
-
-
-class Stock(Security):  # פה אני יוצר מחלקה למניות – כמו חלק בחברה
-    """פה אני יוצר מניה – כמו לקנות חלק קטן בחברה"""
-    
-    def __init__(self, name, amount=0, price=None):
-        """פה אני מתחיל מניה חדשה"""
-        super().__init__(name, price)  # קורא למחלקה הבסיס
-        self.amount = amount  # כמה מניות יש לי
-        # כמה דיבידנד המניה נותנת (0-5%)
-        self.dividend_yield = random.uniform(0, 0.05)
-        # כמה המחיר משתנה (10-30%)
-        self.volatility = random.uniform(0.1, 0.3)
-    
-    def calculate_value(self):
-        """פה אני מחשב כמה שווה המניה – מחיר כפול כמות"""
-        return self.price * self.amount
-    
-    def calculate_dividend(self):
-        """פה אני מחשב כמה דיבידנד אני מקבל מהמניה"""
-        return self.calculate_value() * self.dividend_yield
-    
-    def simulate_price_change(self):
-        """פה אני מדמה שינוי במחיר המניה – כמו במציאות"""
-        # פה אני יוצר שינוי אקראי במחיר (עלייה או ירידה)
-        change_percent = random.uniform(-self.volatility, self.volatility)
-        self.price *= (1 + change_percent)
-        return self.price
-    
-    def __str__(self):
-        """פה אני מחזיר תיאור יפה של המניה"""
-        return (f"מניה: {self.name} - מחיר: {self.price:.2f}, "
-                f"כמות: {self.amount}, ערך: {self.calculate_value():.2f}")
-
-
-class Bond(Security):  # פה אני יוצר מחלקה לאג"חים – כמו הלוואה
-    """פה אני יוצר אג"ח – כמו להלוות כסף ולקבל ריבית"""
-    
-    def __init__(self, name, amount=0, price=None, coupon_rate=None):
-        """פה אני מתחיל אג"ח חדש"""
-        super().__init__(name, price)
-        self.amount = amount  # כמה אג"חים יש לי
-        if coupon_rate is None:
-            # אם לא נתנו ריבית, אני יוצר ריבית מדומה
-            self.coupon_rate = random.uniform(0.02, 0.08)  # ריבית 2-8%
+    def get_user_by_id(self, user_id):
+        """קבלת משתמש לפי ID - לצורך Flask-Login"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return None
+        
+        cursor = conn.cursor()  # יצר cursor
+        
+        if self.use_postgresql:  # PostgreSQL query
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+        else:  # SQLite query
+            cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        
+        user = cursor.fetchone()  # קבל תוצאה ראשונה
+        
+        if user:  # אם נמצא משתמש
+            if self.use_postgresql:  # המר ל-dictionary ב-PostgreSQL
+                user_dict = dict(zip([desc[0] for desc in cursor.description], user))
+            else:  # ב-SQLite זה כבר dictionary
+                user_dict = dict(user)
         else:
-            self.coupon_rate = coupon_rate  # הריבית שנתנו לי
-        # כמה שנים עד שהאג"ח מסתיים
-        self.maturity_years = random.randint(1, 10)
+            user_dict = None  # אם לא נמצא
+        
+        cursor.close()  # סגור cursor
+        conn.close()  # סגור חיבור
+        return user_dict  # החזר את נתוני המשתמש
     
-    def calculate_value(self):
-        """פה אני מחשב כמה שווה האג"ח – מחיר כפול כמות"""
-        return self.price * self.amount
+    def add_security(self, name, symbol, amount, price, industry, variance, security_type):
+        """הוספת נייר ערך למסד הנתונים"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return False
+        
+        cursor = conn.cursor()  # יצר cursor
+        try:
+            if self.use_postgresql:  # PostgreSQL syntax
+                cursor.execute("""
+                    INSERT INTO securities (name, symbol, amount, price, industry, variance, security_type)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (name, symbol, amount, price, industry, variance, security_type))
+            else:  # SQLite syntax
+                cursor.execute("""
+                    INSERT INTO securities (name, symbol, amount, price, industry, variance, security_type)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (name, symbol, amount, price, industry, variance, security_type))
+            
+            conn.commit()  # שמור שינויים
+            return True  # הצלחה
+        except Exception as e:
+            print(f"❌ שגיאה בהוספת נייר ערך: {e}")
+            return False  # כישלון
+        finally:
+            cursor.close()  # סגור cursor
+            conn.close()  # סגור חיבור
     
-    def calculate_coupon_payment(self):
-        """פה אני מחשב כמה ריבית אני מקבל מהאג"ח"""
-        return self.calculate_value() * self.coupon_rate
+    def get_all_securities(self):
+        """קבלת כל ניירות הערך מהתיק - ממוין לפי שם"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return []  # רשימה ריקה אם אין חיבור
+        
+        cursor = conn.cursor()  # יצר cursor
+        cursor.execute("SELECT * FROM securities ORDER BY name")  # שאילתה ממוינת
+        securities = cursor.fetchall()  # קבל את כל התוצאות
+        
+        if securities:  # אם יש תוצאות
+            if self.use_postgresql:  # המר ל-dictionary list ב-PostgreSQL
+                securities_list = [dict(zip([desc[0] for desc in cursor.description], row)) for row in securities]
+            else:  # ב-SQLite זה כבר dictionary list
+                securities_list = [dict(row) for row in securities]
+        else:
+            securities_list = []  # רשימה ריקה אם אין תוצאות
+        
+        cursor.close()  # סגור cursor
+        conn.close()  # סגור חיבור
+        return securities_list  # החזר את הרשימה
     
-    def get_yield_to_maturity(self):
-        """פה אני מחשב את התשואה עד לפדיון – כמה אני מרוויח עד הסוף"""
-        # זה חישוב מורכב, אז אני מחזיר קירוב פשוט
-        return (self.coupon_rate + 
-                (100 - self.price) / (self.price * self.maturity_years))
+    def remove_security(self, name):
+        """הסרת נייר ערך מהתיק לפי שם"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return False
+        
+        cursor = conn.cursor()  # יצר cursor
+        try:
+            if self.use_postgresql:  # PostgreSQL syntax
+                cursor.execute("DELETE FROM securities WHERE name = %s", (name,))
+            else:  # SQLite syntax
+                cursor.execute("DELETE FROM securities WHERE name = ?", (name,))
+            
+            conn.commit()  # שמור שינויים
+            return cursor.rowcount > 0  # החזר True אם נמחק משהו
+        except Exception as e:
+            print(f"❌ שגיאה בהסרת נייר ערך: {e}")
+            return False  # כישלון
+        finally:
+            cursor.close()  # סגור cursor
+            conn.close()  # סגור חיבור
     
-    def __str__(self):
-        """פה אני מחזיר תיאור יפה של האג"ח"""
-        return (f'אג"ח: {self.name} - מחיר: {self.price:.2f}, '
-                f'כמות: {self.amount}, ריבית: {self.coupon_rate*100:.1f} אחוז')
+    def update_security_price(self, name, new_price):
+        """עדכון מחיר נייר ערך קיים"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return False
+        
+        cursor = conn.cursor()  # יצר cursor
+        try:
+            if self.use_postgresql:  # PostgreSQL syntax
+                cursor.execute("UPDATE securities SET price = %s WHERE name = %s", (new_price, name))
+            else:  # SQLite syntax
+                cursor.execute("UPDATE securities SET price = ? WHERE name = ?", (new_price, name))
+            
+            conn.commit()  # שמור שינויים
+            return True  # הצלחה
+        except Exception as e:
+            print(f"❌ שגיאה בעדכון מחיר: {e}")
+            return False  # כישלון
+        finally:
+            cursor.close()  # סגור cursor
+            conn.close()  # סגור חיבור
+    
+    def update_security_name(self, old_name, new_name):
+        """עדכון שם נייר ערך - לשיפור שמות"""
+        conn = self.get_connection()  # קבל חיבור למסד
+        if not conn:
+            return False
+        
+        cursor = conn.cursor()  # יצר cursor
+        try:
+            if self.use_postgresql:  # PostgreSQL syntax
+                cursor.execute("UPDATE securities SET name = %s WHERE name = %s", (new_name, old_name))
+            else:  # SQLite syntax
+                cursor.execute("UPDATE securities SET name = ? WHERE name = ?", (new_name, old_name))
+            
+            conn.commit()  # שמור שינויים
+            return cursor.rowcount > 0  # החזר True אם עודכן משהו
+        except Exception as e:
+            print(f"❌ שגיאה בעדכון שם נייר ערך: {e}")
+            return False  # כישלון
+        finally:
+            cursor.close()  # סגור cursor
+            conn.close()  # סגור חיבור
 
 
-class Broker:  # מחלקה שמטפלת בקבלת מחירי מניות מהאינטרנט
-    """מחלקה שמטפלת בקבלת מחירי מניות מהאינטרנט"""
+class Broker:
+    """שירות קבלת מחירי מניות מ-API של Alpha Vantage"""
     
-    # רשימת מפתחות API של Alpha Vantage - כל פעם שנגמרות הפניות עוברים למפתח הבא
+    # מפתחות API - מספר מפתחות לגיבוי
     API_KEYS = [
-        "87RYKHP1CUPBGWY1",      # מפתח ראשי
-        "451FPPPSEOOZIDV4",      # מפתח שני למטרת בדיקות עקב הגבלת פניות
-        "XX4SBD1SXLFLUSV2",      # מפתח שלישי למטרת בדיקות עקב הגבלת פניות
+        "451FPPPSEOOZIDV4",  # מפתח ראשי
+        "XX4SBD1SXLFLUSV2"   # מפתח גיבוי
     ]
-    
-    # אינדקס המפתח הנוכחי שבשימוש
-    current_key_index = 0
-    
-    # כתובת בסיס של שירות Alpha Vantage לקבלת נתוני מניות
-    BASE_URL = "https://www.alphavantage.co/query"
+    current_key_index = 0  # אינדקס המפתח הנוכחי
+    BASE_URL = "https://www.alphavantage.co/query"  # כתובת בסיס של ה-API
     
     @classmethod
     def get_current_api_key(cls):
-        """מחזיר את המפתח הנוכחי שבשימוש"""
+        """קבלת המפתח הנוכחי"""
         return cls.API_KEYS[cls.current_key_index]
     
     @classmethod
     def rotate_api_key(cls):
-        """עובר למפתח הבא ברשימה (אם נגמרו הפניות במפתח הנוכחי)"""
+        """מעבר למפתח הבא - אם המפתח הנוכחי חסום"""
         cls.current_key_index = (cls.current_key_index + 1) % len(cls.API_KEYS)
-        print(f"עברתי למפתח API מספר {cls.current_key_index + 1}")
         return cls.get_current_api_key()
     
-    @classmethod
-    def is_rate_limit_error(cls, data):
-        """בודק אם השגיאה היא בגלל מגבלת פניות"""
-        if isinstance(data, dict):
-            error_message = data.get('Error Message', '').lower()
-            note = data.get('Note', '').lower()
-            return ('rate limit' in error_message or 
-                   'call frequency' in error_message or
-                   'api call frequency' in note or
-                   'thank you for using alpha vantage' in note)
-        return False
-    
-    @staticmethod  # פונקציה סטטית שלא צריכה מופע של המחלקה
-    def update_price(symbol):  # פונקציה לקבלת מחיר עדכני של מניה
-        """קבלת מחיר עדכני של מניה מ-Alpha Vantage API עם תמיכה במספר מפתחות"""
-        
-        # מנסה עם כל המפתחות אחד אחרי השני
-        for attempt in range(len(Broker.API_KEYS)):
-            current_key = Broker.get_current_api_key()
+    @staticmethod
+    def update_price(symbol):
+        """קבלת מחיר עדכני של מניה מה-API"""
+        try:
+            current_key = Broker.get_current_api_key()  # קבל מפתח נוכחי
+            print(f"🔍 מנסה לקבל מחיר עבור {symbol} עם מפתח {Broker.current_key_index + 1}")
             
-            # יצירת רשימה של פרמטרים לשליחה לשירות
+            # פרמטרים לבקשת API
             params = {
-                'function': 'GLOBAL_QUOTE',  # סוג הבקשה - קבלת מחיר נוכחי
-                'symbol': symbol,  # סמל המניה (לדוגמה: AAPL, TSLA)
-                'apikey': current_key  # המפתח הנוכחי לגישה לשירות
+                'function': 'GLOBAL_QUOTE',  # סוג הבקשה - ציטוט גלובלי
+                'symbol': symbol,  # סמל המניה
+                'apikey': current_key  # מפתח ה-API
             }
             
-            try:  # מנסה לבצע את הבקשה
-                print(f"מנסה לקבל מחיר עבור {symbol} עם מפתח {Broker.current_key_index + 1}")
-                
-                # שולח בקשה HTTP לשירות Alpha Vantage
-                response = requests.get(Broker.BASE_URL, params=params)
-                # הופך את התשובה מ-JSON לאובייקט פייתון
-                data = response.json()
-                
-                # בודק אם זה שגיאת מגבלת פניות
-                if Broker.is_rate_limit_error(data):
-                    print(f"הגעתי למגבלת הפניות במפתח {Broker.current_key_index + 1}, עובר למפתח הבא")
-                    Broker.rotate_api_key()
-                    continue  # מנסה עם המפתח הבא
-                
-                # בודק אם יש את המידע הדרוש בתשובה
-                if 'Global Quote' in data:
-                    # מחלץ את המחיר הנוכחי מהתשובה
-                    current_price = data['Global Quote']['05. price']
-                    # ממיר מדולר לשקל
-                    ils_price = float(current_price) * USD_TO_ILS_RATE
-                    print(f"קיבלתי מחיר עבור {symbol}: ${current_price} = ₪{ils_price:.2f}")
-                    return ils_price  # מחזיר את המחיר בשקלים
-                else:  # אם אין מידע על המניה
-                    print(f"לא נמצא מידע על {symbol}")  # מדפיס הודעת שגיאה
-                    return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
-                    
-            except Exception as e:  # אם יש שגיאה בתקשורת עם השירות
-                print(f"שגיאה בקבלת מחיר עבור {symbol} עם מפתח {Broker.current_key_index + 1}: {e}")
-                if attempt < len(Broker.API_KEYS) - 1:  # אם יש עוד מפתחות לנסות
-                    Broker.rotate_api_key()
-                    continue
-        
-        # אם כל המפתחות נכשלו
-        print(f"כל המפתחות נכשלו עבור {symbol}, מחזיר מחיר ברירת מחדל")
-        return 100.0 * USD_TO_ILS_RATE  # מחזיר מחיר ברירת מחדל בשקלים
-
-    @staticmethod
-    def get_stock_price(symbol):
-        """מביאה את המחיר הנוכחי של מניה מהבורסה"""
-        try:
-            stock = yf.Ticker(symbol)  # יוצר אובייקט של המניה
-            data = stock.history(period='1d')  # מביא נתונים של יום אחד
-            if not data.empty:
-                return data['Close'][0]  # מחזיר את מחיר הסגירה
-            else:
+            # שליחת בקשה ל-API עם timeout
+            response = requests.get(Broker.BASE_URL, params=params, timeout=10)
+            data = response.json()  # המרה ל-JSON
+            
+            print(f"📊 תגובת API עבור {symbol}: {data}")
+            
+            # בדיקת תוצאת API
+            if 'Global Quote' in data and '05. price' in data['Global Quote']:
+                current_price = data['Global Quote']['05. price']  # קבל מחיר נוכחי
+                ils_price = float(current_price) * USD_TO_ILS_RATE  # המר לשקלים
+                print(f"💰 קיבלתי מחיר עבור {symbol}: ${current_price} = ₪{ils_price:.2f}")
+                return ils_price  # החזר מחיר בשקלים
+            elif 'Error Message' in data:  # אם יש שגיאה
+                print(f"❌ שגיאת API עבור {symbol}: {data['Error Message']}")
                 return None
-        except Exception as e:
-            print(f'בעיה עם {symbol}: {e}')
-            return None
-
-    @staticmethod
-    def get_multiple_prices(symbols):
-        """מביאה מחירים של כמה מניות בבת אחת עם תמיכה במספר מפתחות"""
-        prices = {}
-        for symbol in symbols:
-            price = Broker.update_price(symbol)  # משתמש בפונקציה המעודכנת
-            if price is not None:
-                prices[symbol] = price
-            time.sleep(0.1)  # מחכה קצת בין בקשות (לא לעבור על מגבלות)
-        return prices
-
-    @staticmethod
-    def get_stock_info(symbol):
-        """מביאה מידע מפורט על מניה"""
-        try:
-            stock = yf.Ticker(symbol)
-            info = stock.info  # מביא מידע כללי על המניה
-            
-            # בוחר רק את המידע החשוב
-            important_info = {
-                'name': info.get('longName', 'לא ידוע'),
-                'sector': info.get('sector', 'לא ידוע'),
-                'market_cap': info.get('marketCap', 0),
-                'pe_ratio': info.get('trailingPE', 0),
-                'dividend_yield': info.get('dividendYield', 0)
-            }
-            
-            return important_info
-        except Exception as e:
-            print(f'בעיה עם {symbol}: {e}')
-            return None
-
-    @staticmethod
-    def get_price_history(symbol, period='1y'):
-        """מביאה היסטוריית מחירים של מניה"""
-        try:
-            stock = yf.Ticker(symbol)
-            data = stock.history(period=period)  # מביא נתונים לתקופה מסוימת
-            return data
-        except Exception as e:
-            print(f'בעיה עם {symbol}: {e}')
-            return None
-
-    @classmethod
-    def get_api_keys_status(cls):
-        """מחזיר מידע על מצב המפתחות"""
-        return {
-            'total_keys': len(cls.API_KEYS),
-            'current_key_index': cls.current_key_index,
-            'current_key': cls.get_current_api_key()[:8] + "...",  # מציג רק חלק מהמפתח
-            'available_keys': len(cls.API_KEYS)
-        }
-
-    @classmethod
-    def reset_key_rotation(cls):
-        """מאפס את הרוטציה למפתח הראשון"""
-        cls.current_key_index = 0
-        print("אופסתי את הרוטציה למפתח הראשון")
-
-
-class Portfolio:  # פה אני יוצר מחלקה לתיק השקעות – כמו תיק עם כל הניירות ערך
-    """פה אני יוצר תיק השקעות – כמו תיק עם כל המניות והאג"חים שלי"""
-    
-    def __init__(self):
-        """פה אני מתחיל תיק ריק"""
-        self.securities = []  # רשימה של כל הניירות ערך שיש לי
-        self.total_value = 0  # ערך כולל של התיק
-    
-    def add_security(self, security):
-        """פה אני מוסיף נייר ערך לתיק – כמו לשים משהו בתיק"""
-        self.securities.append(security)
-        self._update_total_value()
-    
-    def remove_security(self, security_name):
-        """פה אני מוציא נייר ערך מהתיק – כמו להוציא משהו מהתיק"""
-        for i, security in enumerate(self.securities):
-            if security.name == security_name:
-                del self.securities[i]
-                self._update_total_value()
-                return True
-        return False
-    
-    def _update_total_value(self):
-        """פה אני מחשב את הערך הכולל של התיק"""
-        self.total_value = sum(security.calculate_value() 
-                              for security in self.securities)
-    
-    def get_portfolio_summary(self):
-        """פה אני מחזיר סיכום של התיק – מה יש לי וכמה שווה הכל"""
-        summary = {
-            'total_value': self.total_value,
-            'num_securities': len(self.securities),
-            'stocks': [],
-            'bonds': []
-        }
-        
-        for security in self.securities:
-            if isinstance(security, Stock):
-                summary['stocks'].append({
-                    'name': security.name,
-                    'value': security.calculate_value(),
-                    'dividend': security.calculate_dividend()
-                })
-            elif isinstance(security, Bond):
-                summary['bonds'].append({
-                    'name': security.name,
-                    'value': security.calculate_value(),
-                    'coupon': security.calculate_coupon_payment()
-                })
-        
-        return summary
-    
-    def __str__(self):
-        """פה אני מחזיר תיאור יפה של התיק"""
-        summary = self.get_portfolio_summary()
-        result = f"תיק השקעות - ערך כולל: {self.total_value:.2f}\n"
-        result += f"מספר ניירות ערך: {summary['num_securities']}\n"
-        
-        if summary['stocks']:
-            result += "\nמניות:\n"
-            for stock in summary['stocks']:
-                result += (f"  {stock['name']}: {stock['value']:.2f} "
-                          f"(דיבידנד: {stock['dividend']:.2f})\n")
-        
-        if summary['bonds']:
-            result += '\nאג"חים:\n'
-            for bond in summary['bonds']:
-                result += (f"  {bond['name']}: {bond['value']:.2f} "
-                          f"(ריבית: {bond['coupon']:.2f})\n")
-        
-        return result
-
-
-class RiskManager:  # פה אני יוצר מנהל סיכונים – כמו בודק בטיחות
-    """פה אני מחשב סיכונים של ניירות ערך – כמה מסוכן זה להשקיע בזה"""
-    
-    @staticmethod
-    def calculate_risk(security_type, industry, variance):
-        """פה אני מחשב כמה מסוכן נייר ערך מסוים – ציון בין 1 ל-10"""
-        risk_score = 0
-        
-        # פה אני בודק איזה סוג נייר ערך זה
-        if security_type == 'מניה רגילה':
-            risk_score += 3  # מניות יותר מסוכנות
-        elif security_type == 'אגח ממשלתית':
-            risk_score += 1  # אג"ח ממשלתיות פחות מסוכנות
-        elif security_type == 'אגח קונצרנית':
-            risk_score += 2  # אג"ח של חברות בינוניות
-        
-        # פה אני בודק באיזה תחום זה
-        industry_risks = {
-            'טכנולוגיה': 3,  # טכנולוגיה מאוד מסוכנת
-            'תחבורה': 2,  # תחבורה בינונית
-            'אנרגיה': 2,  # אנרגיה בינונית
-            'בריאות': 2,  # בריאות בינונית
-            'תעשייה': 1,  # תעשייה פחות מסוכנת
-            'פיננסים': 2,  # פיננסים בינוניים
-            'נדלן': 2,  # נדלן בינוני
-            'צריכה פרטית': 1  # צריכה פחות מסוכנת
-        }
-        risk_score += industry_risks.get(industry, 2)
-        
-        # פה אני בודק כמה המחיר משתנה
-        if variance == 'גבוה':
-            risk_score += 2  # אם המחיר משתנה הרבה – יותר מסוכן
-        elif variance == 'נמוך':
-            risk_score += 0  # אם המחיר יציב – פחות מסוכן
-        
-        # פה אני מחזיר ציון בין 1 ל-10
-        return min(max(risk_score, 1), 10)
-    
-    @staticmethod
-    def get_risk_description(risk_score):
-        """פה אני מחזיר הסבר על רמת הסיכון במילים פשוטות"""
-        if risk_score <= 2:
-            return "סיכון נמוך מאוד – כמו לשים כסף בבנק"
-        elif risk_score <= 4:
-            return "סיכון נמוך – כמו לקנות דירה"
-        elif risk_score <= 6:
-            return "סיכון בינוני – כמו לפתוח עסק קטן"
-        elif risk_score <= 8:
-            return "סיכון גבוה – כמו לקנות מניות טכנולוגיה"
-        else:
-            return "סיכון גבוה מאוד – כמו לקנות מניות של חברות קטנות"
-    
-    @staticmethod
-    def calculate_portfolio_risk(portfolio):
-        """פה אני מחשב את הסיכון הכללי של כל התיק"""
-        if not portfolio:
-            return 0
-        
-        total_risk = 0
-        total_value = 0
-        
-        for item in portfolio:
-            # פה אני מחשב סיכון של כל נייר ערך
-            risk = RiskManager.calculate_risk(
-                item['security_type'],
-                item['industry'],
-                item['variance']
-            )
-            value = item['price'] * item['amount']
-            total_risk += risk * value  # סיכון כפול ערך
-            total_value += value
-        
-        if total_value == 0:
-            return 0
-        
-        # פה אני מחזיר ממוצע משוקלל של הסיכון
-        return total_risk / total_value
-
-
-class PortfolioController:  # פה אני יוצר מנהל תיק השקעות – כמו יועץ השקעות חכם
-    """פה אני מנהל את כל התיק – קונה, מוכר, מחשב סיכונים, מקבל ייעוץ מהבינה המלאכותית"""
-    
-    def __init__(self, portfolio_model):
-        """פה אני מתחיל את המנהל עם מסד הנתונים והבינה המלאכותית"""
-        self.portfolio_model = portfolio_model  # מסד הנתונים של התיק
-        print("אתחול מנהל תיק השקעות")
-    
-    def buy_security(self, security, industry, variance, security_type):
-        """פה אני קונה מניה/אג"ח חדשה לתיק – כמו ללכת לסופר ולקנות מוצר"""
-        try:
-            # פה אני שומר את הנייר ערך במסד הנתונים
-            self.portfolio_model.add_security(
-                security.name,  # שם המניה/אג"ח
-                security.amount,  # כמה לקנות
-                security.price,  # במחיר כמה
-                industry,  # באיזה תחום (טכנולוגיה, בריאות וכו')
-                variance,  # כמה המחיר משתנה (נמוך/גבוה)
-                security_type  # איזה סוג (מניה/אג"ח)
-            )
-            return f"קניתי {security.amount} יחידות של {security.name} במחיר {security.price}"
-        except Exception as e:
-            return f"שגיאה בקנייה: {str(e)}"
-    
-    def sell_security(self, security_name, amount):
-        """פה אני מוכר מניה/אג"ח מהתיק – כמו למכור משהו שקניתי קודם"""
-        try:
-            # פה אני מוחק את הנייר ערך מהמסד
-            self.portfolio_model.remove_security(security_name)
-            return f"מכרתי {amount} יחידות של {security_name}"
-        except Exception as e:
-            return f"שגיאה במכירה: {str(e)}"
-    
-    def get_portfolio(self):
-        """פה אני מביא את כל התיק – רשימה של כל מה שיש לי"""
-        print("=== התחלת get_portfolio ===")
-        try:
-            print("קורא get_all_securities מהמודל")
-            securities = self.portfolio_model.get_all_securities()
-            print(f"קיבלתי {len(securities)} ניירות ערך מהמודל")
-            portfolio = []
-            for sec in securities:
-                portfolio.append({
-                    'name': sec['name'],  # שם המניה/אג"ח
-                    'amount': sec['amount'],  # כמה יש לי
-                    'price': sec['price'],  # במחיר כמה
-                    'industry': sec['industry'],  # באיזה תחום
-                    'variance': sec['variance'],  # כמה משתנה
-                    'security_type': sec['security_type']  # איזה סוג
-                })
-            print(f"החזרתי {len(portfolio)} ניירות ערך")
-            return portfolio
-        except Exception as e:
-            print(f"שגיאה בקבלת התיק: {str(e)}")
-            return []
-    
-    def get_advice(self, portfolio, risk_profile):
-        """פה אני מקבל ייעוץ מהבינה המלאכותית – כמו לדבר עם יועץ השקעות חכם"""
-        print("=== התחלת get_advice ===")
-        try:
-            # פה אני מכין מידע על התיק בשביל הבינה המלאכותית
-            portfolio_info = []
-            for item in portfolio:
-                portfolio_info.append({
-                    'name': item['name'],
-                    'amount': item['amount'],
-                    'price': item['price'],
-                    'industry': item['industry'],
-                    'security_type': item['security_type']
-                })
-            
-            print(f"שולח {len(portfolio_info)} ניירות ערך לבינה המלאכותית")
-            # פה אני שולח את המידע לבינה המלאכותית ומקבל ייעוץ
-            # advice = self.ai_agent.get_investment_advice(portfolio_info, risk_profile)
-            advice = "ייעוץ מהבינה המלאכותית - לפתח בהמשך"
-            print("קיבלתי ייעוץ מהבינה המלאכותית")
-            return advice
-        except Exception as e:
-            print(f"שגיאה בקבלת ייעוץ: {str(e)}")
-            return f"לא הצלחתי לקבל ייעוץ: {str(e)}"
-    
-    def calculate_total_value(self):
-        """פה אני מחשב כמה שווה כל התיק שלי ביחד"""
-        portfolio = self.get_portfolio()
-        total = 0
-        for item in portfolio:
-            total += item['price'] * item['amount']  # מחיר כפול כמות
-        return total
-    
-    def update_prices(self):
-        """פה אני מעדכן את כל המחירים בתיק – כמו לבדוק מחירים חדשים"""
-        try:
-            portfolio = self.get_portfolio()
-            for item in portfolio:
-                # פה אני מביא מחיר חדש מהאינטרנט
-                new_price = self._get_current_price(item['name'])
-                if new_price:
-                    # self.portfolio_model.update_price(item['name'], new_price)
-                    pass  # לפתח בהמשך
-            return "כל המחירים עודכנו"
-        except Exception as e:
-            return f"שגיאה בעדכון מחירים: {str(e)}"
-    
-    def _get_current_price(self, symbol):
-        """פה אני מביא מחיר נוכחי מהאינטרנט (או מדומה)"""
-        # פה אני יכול להביא מחיר אמיתי מהאינטרנט
-        # כרגע אני משתמש במחיר מדומה
-        return random.uniform(10, 100)  # מחיר בין 10 ל-100
-
-
-class PortfolioModel:  # פה אני יוצר מחלקה שמנהלת את כל הנתונים של התיק שלי
-    """פה אני שומר את כל המידע של התיק – מניות, אג"חים, מחירים, כמויות וכו'"""
-
-    def __init__(self):
-        self.database_url = os.environ.get('DATABASE_URL')
-        if not self.database_url:
-            raise Exception("לא מוגדר DATABASE_URL! חובה להגדיר את כתובת PostgreSQL במשתני הסביבה.")
-        print(f"DATABASE_URL מהסביבה: {self.database_url}")
-        
-        if self.database_url:
-            print("משתמש ב-PostgreSQL בענן")
-            self.use_postgres = True
-        else:
-            print("לא מוגדר DATABASE_URL, משתמש ב-SQLite מקומי")
-            self.use_postgres = False
-            self.db_file = 'investments.db'
-        
-        print("=== סיום יצירת PortfolioModel ===")
-        self.init_db()  # יוצר את הטבלאות אם צריך
-
-    def get_connection(self):
-        """יוצר חיבור למסד הנתונים"""
-        print("=== התחלת get_connection ===")
-        if self.use_postgres:
-            print(f"מתחבר ל-PostgreSQL: {self.database_url}")
-            import psycopg2
-            conn = psycopg2.connect(self.database_url)
-            print("חיבור ל-PostgreSQL הצליח")
-            return conn
-        else:
-            print(f"מתחבר ל-SQLite: {self.db_file}")
-            import sqlite3
-            conn = sqlite3.connect(self.db_file)
-            print("חיבור ל-SQLite הצליח")
-            return conn
-
-    @property
-    def db_url(self):
-        """מחזיר את כתובת מסד הנתונים"""
-        return self.database_url if self.use_postgres else self.db_file
-
-    def get_connection_info(self):
-        """מחזיר מידע על החיבור למסד הנתונים"""
-        try:
-            conn = self.get_connection()
-            conn_test = "הצליח" if conn else "נכשל"
-            conn.close()
-            
-            return {
-                'type': 'PostgreSQL' if self.use_postgres else 'SQLite',
-                'url': self.db_url,
-                'status': 'מחובר',
-                'details': f'חיבור למסד נתונים {conn_test}'
-            }
-        except Exception as e:
-            return {
-                'type': 'PostgreSQL' if self.use_postgres else 'SQLite',
-                'url': self.db_url,
-                'status': 'שגיאה בחיבור',
-                'details': f'שגיאה: {str(e)}'
-            }
-
-    def init_db(self):
-        """יוצר את הטבלאות אם צריך"""
-        print("=== התחלת init_db ===")
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                print("יוצר טבלת משתמשים ב-PostgreSQL")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id SERIAL PRIMARY KEY,
-                        username VARCHAR(80) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
-                        email VARCHAR(120) UNIQUE,
-                        role VARCHAR(20) DEFAULT 'user',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                print("יוצר טבלת השקעות ב-PostgreSQL")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS investments (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(120) UNIQUE NOT NULL,
-                        amount INTEGER NOT NULL,
-                        price FLOAT NOT NULL,
-                        industry VARCHAR(120),
-                        variance FLOAT,
-                        security_type VARCHAR(50)
-                    )
-                ''')
-            else:
-                print("יוצר טבלת משתמשים ב-SQLite")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT UNIQUE NOT NULL,
-                        password_hash TEXT NOT NULL,
-                        email TEXT UNIQUE,
-                        role TEXT DEFAULT 'user',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                print("יוצר טבלת השקעות ב-SQLite")
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS investments (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT UNIQUE NOT NULL,
-                        amount REAL NOT NULL,
-                        price REAL NOT NULL,
-                        industry TEXT,
-                        variance REAL,
-                        security_type TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-            
-            conn.commit()
-            conn.close()
-            print("טבלאות נוצרו בהצלחה")
-        except Exception as e:
-            print(f"שגיאה ביצירת טבלאות: {e}")
-            raise
-
-    def get_user_by_id(self, user_id):
-        """פה אני מחזיר משתמש לפי מזהה"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = %s', (user_id,))
-            else:
-                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE id = ?', (user_id,))
-            user = cursor.fetchone()
-            conn.close()
-            
-            if user:
-                return {
-                    'id': user[0],
-                    'username': user[1],
-                    'password_hash': user[2],
-                    'email': user[3],
-                    'role': user[4] if user[4] else 'user'
-                }
-            return None
-        except Exception as e:
-            print(f"שגיאה ב-get_user_by_id: {e}")
-            return None
-
-    def get_user_by_username(self, username):
-        """פה אני מחזיר משתמש לפי שם משתמש"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = %s', (username,))
-            else:
-                cursor.execute('SELECT id, username, password_hash, email, role FROM users WHERE username = ?', (username,))
-            user = cursor.fetchone()
-            conn.close()
-            
-            if user:
-                return {
-                    'id': user[0],
-                    'username': user[1],
-                    'password_hash': user[2],
-                    'email': user[3],
-                    'role': user[4] if user[4] else 'user'
-                }
-            return None
-        except Exception as e:
-            print(f"שגיאה ב-get_user_by_username: {e}")
-            return None
-
-    def create_user(self, username, password, email=None):
-        """פה אני יוצר משתמש חדש"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email)
-                    VALUES (%s, %s, %s)
-                ''', (username, password, email))
-            else:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email)
-                    VALUES (?, ?, ?)
-                ''', (username, password, email))
-                
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"שגיאה ב-create_user: {e}")
-            return False
-
-    def create_user_with_role(self, username, password, role='user', email=None):
-        """פה אני יוצר משתמש חדש עם תפקיד"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email, role)
-                    VALUES (%s, %s, %s, %s)
-                ''', (username, password, email, role))
-            else:
-                cursor.execute('''
-                    INSERT INTO users (username, password_hash, email, role)
-                    VALUES (?, ?, ?, ?)
-                ''', (username, password, email, role))
-                
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"שגיאה ב-create_user_with_role: {e}")
-            return False
-
-    def create_default_users(self):
-        """פה אני יוצר משתמשי ברירת מחדל - admin ו-user"""
-        print("=== התחלת יצירת משתמשי ברירת מחדל ===")
-        
-        try:
-            # בדיקה אם המשתמש admin כבר קיים
-            admin_user = self.get_user_by_username('admin')
-            if not admin_user:
-                # יצירת משתמש admin
-                if self.create_user_with_role('admin', 'admin', 'admin', 'admin@portfolio.com'):
-                    print('משתמש מנהל נוצר: admin / admin')
-                else:
-                    print('שגיאה ביצירת משתמש מנהל')
-            else:
-                print('משתמש מנהל כבר קיים')
-            
-            # בדיקה אם המשתמש user כבר קיים
-            regular_user = self.get_user_by_username('user')
-            if not regular_user:
-                # יצירת משתמש רגיל
-                if self.create_user_with_role('user', 'user', 'user', 'user@portfolio.com'):
-                    print('משתמש רגיל נוצר: user / user')
-                else:
-                    print('שגיאה ביצירת משתמש רגיל')
-            else:
-                print('משתמש רגיל כבר קיים')
-                
-            print("=== סיום יצירת משתמשי ברירת מחדל ===")
-            return True
-            
-        except Exception as e:
-            print(f"שגיאה ביצירת משתמשי ברירת מחדל: {e}")
-            return False
-
-    def add_security(self, name, amount, price, industry, variance, security_type):
-        """פה אני מוסיף מניה/אג"ח חדשה לתיק או מעדכן כמות אם כבר קיימת"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        if self.use_postgres:
-            # בדוק אם קיים
-            cursor.execute('SELECT amount FROM investments WHERE name = %s', (name,))
-            row = cursor.fetchone()
-            if row:
-                # עדכן כמות ומחיר
-                new_amount = float(row[0]) + float(amount)
-                cursor.execute('''
-                    UPDATE investments SET amount = %s, price = %s, industry = %s, variance = %s, security_type = %s WHERE name = %s
-                ''', (new_amount, price, industry, variance, security_type, name))
-                conn.commit()
-                conn.close()
-                return f"עודכנה כמות נייר הערך {name} ל-{new_amount}"
-            else:
-                cursor.execute('''
-                    INSERT INTO investments (name, amount, price, industry, variance, security_type)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                ''', (name, amount, price, industry, variance, security_type))
-                conn.commit()
-                conn.close()
-                return f"נייר הערך {name} נוסף בהצלחה"
-        else:
-            cursor.execute('SELECT amount FROM investments WHERE name = ?', (name,))
-            row = cursor.fetchone()
-            if row:
-                new_amount = float(row[0]) + float(amount)
-                cursor.execute('''
-                    UPDATE investments SET amount = ?, price = ?, industry = ?, variance = ?, security_type = ? WHERE name = ?
-                ''', (new_amount, price, industry, variance, security_type, name))
-                conn.commit()
-                conn.close()
-                return f"עודכנה כמות נייר הערך {name} ל-{new_amount}"
-            else:
-                cursor.execute('''
-                    INSERT INTO investments (name, amount, price, industry, variance, security_type)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (name, amount, price, industry, variance, security_type))
-                conn.commit()
-                conn.close()
-                return f"נייר הערך {name} נוסף בהצלחה"
-
-    def get_all_securities(self):
-        """פה אני מחזיר את כל המניות והאג"חים שיש לי בתיק, כמו רשימה בסופר"""
-        print("=== התחלת get_all_securities ===")
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM investments')
-            securities = cursor.fetchall()
-            conn.close()
-            result = []
-            for sec in securities:
-                result.append({
-                    'id': sec[0],
-                    'name': sec[1],
-                    'amount': float(sec[2]),
-                    'price': float(sec[3]),
-                    'industry': sec[4],
-                    'variance': sec[5],
-                    'security_type': sec[6],
-                    'created_at': sec[7] if len(sec) > 7 else None
-                })
-            print(f"נמצאו {len(result)} ניירות ערך")
-            return result
-        except Exception as e:
-            print(f"שגיאה ב-get_all_securities: {e}")
-            raise
-
-    def remove_security(self, name):
-        """פה אני מוחק מניה/אג"ח מהתיק"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        if self.use_postgres:
-            cursor.execute('DELETE FROM investments WHERE name = %s', (name,))
-        else:
-            cursor.execute('DELETE FROM investments WHERE name = ?', (name,))
-            
-        conn.commit()
-        conn.close()
-        return f"נייר הערך {name} נמחק בהצלחה"
-
-    def update_security_price(self, name, new_price):
-        """פה אני מעדכן מחיר של נייר ערך ספציפי"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.use_postgres:
-                cursor.execute('UPDATE investments SET price = %s WHERE name = %s', (new_price, name))
-            else:
-                cursor.execute('UPDATE investments SET price = ? WHERE name = ?', (new_price, name))
-            
-            if cursor.rowcount > 0:
-                conn.commit()
-                conn.close()
-                return f"מחיר {name} עודכן ל-{new_price:.2f} ₪"
-            else:
-                conn.close()
-                return f"לא נמצא נייר ערך בשם {name}"
+            elif 'Note' in data:  # אם יש הגבלת קצב
+                print(f"⚠️ הגבלת API עבור {symbol}: {data['Note']}")
+                # נסה לסובב למפתח הבא
+                Broker.rotate_api_key()
+                print(f"🔄 עברתי למפתח {Broker.current_key_index + 1}")
+                return None
+            else:  # אם אין מידע
+                print(f"❓ לא נמצא מידע על {symbol}")
+                return None
                 
         except Exception as e:
-            print(f"שגיאה בעדכון מחיר עבור {name}: {e}")
-            raise
-
-    def create_tables(self):
-        """יוצר את כל הטבלאות במסד הנתונים"""
-        print("=== התחלת create_tables ===")
-        self.init_db()
-        print("create_tables הושלם בהצלחה")
-
-    def execute_query(self, query, params=None):
-        """פונקציה כללית לביצוע כל סוג של שאילתה - תואמת לגרסה המקורית של SQLite"""
-        conn = self.get_connection()  # מקבל חיבור למסד הנתונים
-        cursor = conn.cursor()  # יוצר סמן לביצוע פעולות
-        
-        try:
-            if params:  # אם יש פרמטרים נוספים לשאילתה
-                cursor.execute(query, params)  # מריץ את השאילתה עם הפרמטרים
-            else:  # אם אין פרמטרים
-                cursor.execute(query)  # מריץ את השאילתה בלי פרמטרים
-
-            # בודק אם זו שאילתת בחירה (SELECT) שמחזירה תוצאות
-            if query.strip().upper().startswith('SELECT'):
-                results = cursor.fetchall()  # מקבל את כל התוצאות
-                conn.close()  # סוגר את החיבור
-                return results  # מחזיר את התוצאות
-            else:  # אם זו פעולת עדכון, הוספה או מחיקה
-                conn.commit()  # שומר את השינויים במסד הנתונים
-                conn.close()  # סוגר את החיבור
-                return None  # לא מחזיר כלום
-        except Exception as e:
-            conn.close()
-            print(f"שגיאה ב-execute_query: {e}")
-            raise
-
-    def get_securities(self):
-        """פונקציה לשליפת כל ניירות הערך מהתיק - תואמת לגרסה המקורית של SQLite"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            # שולף את השם והמחיר של כל ניירות הערך מהטבלה
-            cursor.execute("SELECT name, price FROM investments")
-            results = cursor.fetchall()  # מקבל את כל התוצאות כרשימה
-            conn.close()  # סוגר את החיבור למסד הנתונים
-            return results  # מחזיר את רשימת ניירות הערך
-        except Exception as e:
-            print(f"שגיאה ב-get_securities: {e}")
-            return []
-
-# מחלקות מיוחדות יותר שיורשות מהמחלקות הבסיסיות
-
-class RegularStock(Stock):  # מחלקה למניה רגילה - יורשת מ-Stock
-    """מחלקה למניה רגילה - הסוג הנפוץ ביותר של מניות"""
-    
-    def __init__(self, name, amount=0, price=None):
-        """פונקציה שמתחילה מניה רגילה"""
-        super().__init__(name, amount, price)  # קוראת לפונקציה של מחלקת המניה הבסיסית
-        self.stock_type = "מניה רגילה"
-
-
-class PreferredStock(Stock):  # מחלקה למניה מועדפת - יורשת מ-Stock
-    """מחלקה למניה מועדפת - מניה עם זכויות מיוחדות"""
-    
-    def __init__(self, name, amount=0, price=None):
-        """פונקציה שמתחילה מניה מועדפת"""
-        super().__init__(name, amount, price)  # קוראת לפונקציה של מחלקת המניה הבסיסית
-        self.stock_type = "מניה מועדפת"
-        # מניות מועדפות בדרך כלל נותנות דיבידנד גבוה יותר
-        self.dividend_yield = random.uniform(0.04, 0.08)  # 4-8%
-
-
-class CorporateBond(Bond):  # מחלקה לאג"ח קונצרני - יורשת מ-Bond
-    """מחלקה לאג"ח קונצרני - אג"ח שמנפיקות חברות פרטיות"""
-    
-    def __init__(self, name, amount=0, price=None, coupon_rate=None):
-        """פונקציה שמתחילה אג"ח קונצרני"""
-        super().__init__(name, amount, price, coupon_rate)  # קוראת לפונקציה של מחלקת האג"ח הבסיסית
-        self.bond_type = "אג\"ח קונצרני"
-        # אג"חים קונצרניים בדרך כלל נותנים ריבית גבוהה יותר (יותר סיכון)
-        if coupon_rate is None:
-            self.coupon_rate = random.uniform(0.04, 0.12)  # ריבית 4-12%
-
-
-class GovernmentalBond(Bond):  # מחלקה לאג"ח ממשלתי - יורשת מ-Bond
-    """מחלקה לאג"ח ממשלתי - אג"ח שמנפיקה הממשלה"""
-    
-    def __init__(self, name, amount=0, price=None, coupon_rate=None):
-        """פונקציה שמתחילה אג"ח ממשלתי"""
-        super().__init__(name, amount, price, coupon_rate)  # קוראת לפונקציה של מחלקת האג"ח הבסיסית
-        self.bond_type = "אג\"ח ממשלתי"
-        # אג"חים ממשלתיים בדרך כלל נותנים ריבית נמוכה יותר (פחות סיכון)
-        if coupon_rate is None:
-            self.coupon_rate = random.uniform(0.01, 0.05)  # ריבית 1-5%
-
-
-print("=== סיום טעינת dbmodel.py ===") 
+            print(f"❌ שגיאה בקבלת מחיר עבור {symbol}: {e}")
+            return None

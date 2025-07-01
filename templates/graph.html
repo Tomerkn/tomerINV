@@ -1,14 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}גרפים - מערכת ניהול השקעות{% endblock %}
+{% block title %}גרפים - מערכת השקעות ישראלית{% endblock %}
 {% block content %}
-<h2 class="mb-4">גרפים</h2>
+<h2 class="mb-4">
+    <span class="material-icons" style="font-size: 32px; vertical-align: middle; margin-right: 8px;">analytics</span>
+    גרפים וניתוח תיק
+</h2>
 
 {% if portfolio %}
 <div class="row">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5>תרשים עוגה - התפלגות התיק</h5>
+                <h5><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">pie_chart</span> תרשים עוגה - התפלגות התיק</h5>
             </div>
             <div class="card-body text-center">
                 <img src="{{ url_for('generate_pie_chart') }}" alt="תרשים עוגה של התיק" class="img-fluid" style="max-width: 100%; height: auto;">
@@ -21,11 +24,11 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5>פירוט התפלגות תיק השקעות</h5>
+                <h5><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">list_alt</span> פירוט התפלגות תיק השקעות</h5>
             </div>
             <div class="card-body">
                 {% for item in portfolio %}
-                {% set color_class = "color-" + (loop.index % 8 + 1)|string %}
+                {% set color_class = "color-" + loop.index|string %}
                 <div class="mb-2">
                     <span class="pie-slice {{ color_class }}"></span>
                     <strong>{{ item.name }}</strong>: {{ "{:.1f}".format(item.percentage) }}%
@@ -42,7 +45,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5>פירוט תיק השקעות</h5>
+                <h5><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">table_chart</span> פירוט תיק השקעות</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -78,15 +81,15 @@
     <div class="col-md-12">
         <div class="card">
             <div class="card-header">
-                <h5>תרשים עוגה - התפלגות התיק</h5>
+                <h5><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px;">pie_chart</span> תרשים עוגה - התפלגות התיק</h5>
             </div>
             <div class="card-body text-center">
                 <img src="{{ url_for('generate_pie_chart') }}" alt="תרשים עוגה של התיק" class="img-fluid" style="max-width: 100%; height: auto;">
                 <div class="alert alert-info mt-3">
-                    <h4>אין נתונים להצגה</h4>
+                    <h4><span class="material-icons" style="font-size: 24px; vertical-align: middle; margin-right: 8px;">info</span> אין נתונים להצגה</h4>
                     <p>הוסף ניירות ערך לתיק ההשקעות שלך כדי לראות גרפים</p>
                     {% if current_user.is_admin() %}
-                    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך</a>
+                    <a href="{{ url_for('add_security') }}" class="btn btn-primary"><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 8px;">add_circle</span> הוסף נייר ערך</a>
                     {% endif %}
                 </div>
             </div>
@@ -114,15 +117,30 @@
     border-radius: 50%;
     margin-left: 10px;
     vertical-align: middle;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.color-1 { background-color: #FF6384; }
-.color-2 { background-color: #36A2EB; }
-.color-3 { background-color: #FFCE56; }
-.color-4 { background-color: #4BC0C0; }
-.color-5 { background-color: #9966FF; }
-.color-6 { background-color: #FF9F40; }
-.color-7 { background-color: #FF6384; }
-.color-8 { background-color: #C9CBCF; }
+/* צבעים יפים ומגוונים - תואמים לגרף העוגה */
+.color-1 { background-color: #FF6B6B; }  /* אדום בהיר יפה */
+.color-2 { background-color: #4ECDC4; }  /* טורקיז */
+.color-3 { background-color: #45B7D1; }  /* כחול בהיר */
+.color-4 { background-color: #96CEB4; }  /* ירוק מנטה */
+.color-5 { background-color: #FFEAA7; }  /* צהוב זהב */
+.color-6 { background-color: #DDA0DD; }  /* סגול בהיר */
+.color-7 { background-color: #FFA07A; }  /* כתום אלמון */
+.color-8 { background-color: #98D8C8; }  /* ירוק ים */
+.color-9 { background-color: #F7DC6F; }  /* צהוב לימון */
+.color-10 { background-color: #BB8FCE; } /* סגול לבנדר */
+.color-11 { background-color: #85C1E9; } /* כחול שמיים */
+.color-12 { background-color: #82E0AA; } /* ירוק מינט */
+.color-13 { background-color: #F8C471; } /* כתום אפרסק */
+.color-14 { background-color: #F1948A; } /* ורוד סלמון */
+.color-15 { background-color: #85CDFD; } /* כחול תכלת */
+.color-16 { background-color: #A8E6CF; } /* ירוק פסטל */
+.color-17 { background-color: #FFB6B9; } /* ורוד פסטל */
+.color-18 { background-color: #C7CEEA; } /* סגול פסטל */
+.color-19 { background-color: #FFAAA5; } /* אדום פסטל */
+.color-20 { background-color: #B4E7CE; } /* ירוק אקווה */
 </style>
 {% endblock %}

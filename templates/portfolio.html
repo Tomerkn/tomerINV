@@ -1,18 +1,15 @@
 {% extends 'base.html' %}
-{% block title %}תיק השקעות - מערכת ניהול השקעות{% endblock %}
+{% block title %}תיק השקעות - מערכת השקעות ישראלית{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>תיק השקעות</h2>
     <div>
         {% if current_user.is_admin() %}
-        <a href="{{ url_for('update_all_prices') }}" class="btn btn-success me-2">
-            <i class="bi bi-arrow-repeat"></i> עדכן מחירים
-        </a>
         <a href="{{ url_for('api_keys_status') }}" class="btn btn-info me-2">
-            <i class="bi bi-key"></i> מצב מפתחות API
+            <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">vpn_key</span> מצב מפתחות API
         </a>
         <a href="{{ url_for('add_security') }}" class="btn btn-primary me-2">
-            <i class="bi bi-plus-circle"></i> הוסף נייר ערך
+            <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">add_circle</span> הוסף נייר ערך
         </a>
 
         {% else %}
@@ -23,6 +20,10 @@
 
 {% if portfolio %}
 <div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">תיק ההשקעות ({{ total_securities }} ניירות ערך)</h5>
+        <small class="text-muted">עמוד {{ current_page }} מתוך {{ total_pages }}</small>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -42,15 +43,15 @@
                         <td><strong>{{ item.name }}</strong></td>
                         <td class="current-price">₪{{ "{:,.2f}".format(item.price) }}</td>
                         <td>{{ "{:,.2f}".format(item.amount) }}</td>
-                        <td>₪{{ "{:,.2f}".format(item.price * item.amount) }}</td>
+                        <td>₪{{ "{:,.2f}".format(item.value) }}</td>
                         <td>
                             {% if item.risk_level %}
                                 {% if item.risk_level <= 2 %}
-                                    <span class="badge bg-success">{{ "{:.1f}".format(item.risk_level) }} - נמוך</span>
+                                    <span class="badge bg-success"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</span> {{ "{:.1f}".format(item.risk_level) }} - נמוך</span>
                                 {% elif item.risk_level <= 6 %}
-                                    <span class="badge bg-warning">{{ "{:.1f}".format(item.risk_level) }} - בינוני</span>
+                                    <span class="badge bg-warning"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</span> {{ "{:.1f}".format(item.risk_level) }} - בינוני</span>
                                 {% else %}
-                                    <span class="badge bg-danger">{{ "{:.1f}".format(item.risk_level) }} - גבוה</span>
+                                    <span class="badge bg-danger"><span class="material-icons" style="font-size: 14px; vertical-align: middle;">cancel</span> {{ "{:.1f}".format(item.risk_level) }} - גבוה</span>
                                 {% endif %}
                             {% else %}
                                 <span class="badge bg-secondary">לא מוגדר</span>
@@ -58,11 +59,8 @@
                         </td>
                         <td>
                             {% if current_user.is_admin() %}
-                            <a href="{{ url_for('update_single_price', symbol=item.name) }}" class="btn btn-sm btn-info me-1">
-                                <i class="bi bi-arrow-repeat"></i> עדכן מחיר
-                            </a>
                             <button class="btn btn-sm btn-danger" onclick="deleteAsset('{{ item.name }}')">
-                                <i class="bi bi-trash"></i> מחק
+                                <span class="material-icons" style="font-size: 16px; vertical-align: middle;">delete</span> מחק
                             </button>
                             {% else %}
                             <span class="text-muted">אין הרשאה</span>
@@ -73,6 +71,52 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Portfolio pagination" class="mt-3">
+            <ul class="pagination justify-content-center">
+                <!-- Previous Page -->
+                {% if has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('portfolio', page=current_page-1) }}">קודם</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">קודם</span>
+                </li>
+                {% endif %}
+                
+                <!-- Page Numbers -->
+                {% for page_num in range(1, total_pages + 1) %}
+                    {% if page_num == current_page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= current_page - 1 and page_num <= current_page + 1) %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('portfolio', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                    {% elif page_num == 4 or page_num == total_pages - 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next Page -->
+                {% if has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('portfolio', page=current_page+1) }}">הבא</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">הבא</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
 {% else %}
@@ -80,7 +124,7 @@
     <h4>התיק שלך ריק</h4>
     <p>התחל בהוספת ניירות ערך לתיק ההשקעות שלך</p>
     {% if current_user.is_admin() %}
-    <a href="{{ url_for('add_security') }}" class="btn btn-primary">הוסף נייר ערך ראשון</a>
+    <a href="{{ url_for('add_security') }}" class="btn btn-primary"><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-left: 8px;">add_circle</span> הוסף נייר ערך ראשון</a>
     {% endif %}
 </div>
 {% endif %}

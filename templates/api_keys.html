@@ -1,109 +1,245 @@
-{% extends 'base.html' %}
-{% block title %}מפתחות API - מערכת ניהול השקעות{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}בדיקת מפתחות API{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>מפתחות Alpha Vantage API</h2>
-    <div>
-        <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> חזרה לתיק
-        </a>
-    </div>
-</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4><i class="bi bi-key"></i> סטטוס מפתחות API</h4>
+                </div>
+                <div class="card-body">
+                    <!-- סיכום כללי -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h5><i class="bi bi-info-circle"></i> מידע כללי</h5>
+                                <p><strong>סה"כ מפתחות זמינים:</strong> {{ api_status.total_keys }}</p>
+                                <p><strong>מפתח פעיל:</strong> #{{ api_status.current_key_index + 1 }}</p>
+                                <p><strong>סטטוס חיבור:</strong> {{ api_status.connection_status }}</p>
+                                <p><strong>בדיקה אחרונה:</strong> {{ api_status.last_test_price }}</p>
+                            </div>
+                        </div>
 
-<div class="row">
-    <!-- מידע כללי -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">מידע כללי</h5>
-            </div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <tr>
-                        <td><strong>סה"כ מפתחות:</strong></td>
-                        <td>{{ total_keys }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>מפתח נוכחי:</strong></td>
-                        <td>מספר {{ current_key_index + 1 }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>מפתח בשימוש:</strong></td>
-                        <td><code>{{ current_key }}</code></td>
-                    </tr>
-                    <tr>
-                        <td><strong>מפתחות זמינים:</strong></td>
-                        <td>{{ available_keys }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
+                    </div>
 
-    <!-- איך זה עובד -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">איך זה עובד?</h5>
-            </div>
-            <div class="card-body">
-                <p class="card-text">המערכת משתמשת במספר מפתחות API של Alpha Vantage:</p>
-                <ul class="list-unstyled">
-                    <li><i class="bi bi-check-circle text-success"></i> כל מפתח מאפשר 25 בקשות בדקה ו-500 בקשות ביום</li>
-                    <li><i class="bi bi-arrow-repeat text-primary"></i> כשמפתח מגיע למגבלה, המערכת עוברת אוטומטית למפתח הבא</li>
-                    <li><i class="bi bi-speedometer2 text-info"></i> זה מאפשר לעדכן יותר מחירים מבלי להיתקע במגבלות</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
+                    <!-- מפתחות Alpha Vantage -->
+                    <h5><i class="bi bi-key-fill"></i> מפתחות Alpha Vantage API</h5>
+                    <div class="row">
+                        {% for key_info in api_status.api_keys %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card {% if key_info.is_current %}border-success{% else %}border-secondary{% endif %}">
+                                <div class="card-header {% if key_info.is_current %}bg-success text-white{% else %}bg-light{% endif %}">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-key"></i> מפתח #{{ key_info.index + 1 }}
+                                        {% if key_info.is_current %}
+                                        <span class="badge bg-warning text-dark ms-2">פעיל כעת</span>
+                                        {% endif %}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>מזהה:</strong> {{ key_info.key }}</p>
+                                    <p><strong>סטטוס:</strong> {{ key_info.status }}</p>
+                                    <p><strong>סוג:</strong> {{ key_info.type }}</p>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            onclick="showKeyDetails('{{ key_info.index }}', '{{ key_info.key }}', '{{ key_info.type }}', {{ key_info.is_current|tojson }})">
+                                        <i class="bi bi-info-circle"></i> פרטים נוספים
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
 
-<!-- פעולות ניהול -->
-<div class="row">
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">פעולות ניהול</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2 d-md-flex">
-                    <a href="{{ url_for('reset_api_rotation') }}" class="btn btn-primary">
-                        <i class="bi bi-arrow-clockwise"></i> אפס רוטציה למפתח הראשון
-                    </a>
-                    <a href="{{ url_for('test_current_api_key') }}" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> בדוק מפתח נוכחי
-                    </a>
-                    <a href="{{ url_for('update_all_prices') }}" class="btn btn-warning">
-                        <i class="bi bi-currency-dollar"></i> עדכן כל המחירים
-                    </a>
+                    <!-- כפתור בדיקה -->
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-primary" onclick="testConnection()">
+                            <i class="bi bi-wifi"></i> בדיקת חיבור מחדש
+                        </button>
+                        <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> חזרה לתיק
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- הוראות הגדרה -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">הוראות הגדרה</h5>
+<!-- פופאפ פרטי המפתח -->
+<div class="modal fade" id="keyDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-key"></i> פרטי מפתח API
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="card-body">
-                <p class="card-text">כדי להוסיף מפתחות נוספים:</p>
-                <ol>
-                    <li>הירשם ל-<a href="https://www.alphavantage.co/support/#api-key" target="_blank" class="text-decoration-none">Alpha Vantage <i class="bi bi-box-arrow-up-right"></i></a> וקבל מפתח חינמי</li>
-                    <li>עדכן את הרשימה <code>API_KEYS</code> בקובץ <code>dbmodel.py</code></li>
-                    <li>החלף את <code>YOUR_SECOND_API_KEY</code> במפתח האמיתי שלך</li>
-                    <li>הפעל מחדש את האפליקציה</li>
-                </ol>
-                
-                <div class="alert alert-info mt-3" role="alert">
-                    <i class="bi bi-info-circle"></i>
-                    <strong>טיפ:</strong> מומלץ להשיג לפחות 3 מפתחות כדי להבטיח עדכון מחירים רציף ללא הפרעות.
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-primary" id="keyActiveStatus">
+                            <i class="bi bi-info-circle"></i> זהו המפתח הפעיל כעת
+                        </div>
+                        
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>מספר מפתח:</strong></td>
+                                <td id="keyNumber">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>מזהה מפתח:</strong></td>
+                                <td id="keyId">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>סוג מפתח:</strong></td>
+                                <td id="keyType">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>סטטוס:</strong></td>
+                                <td id="keyStatus">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ספק שירות:</strong></td>
+                                <td>Alpha Vantage</td>
+                            </tr>
+                            <tr>
+                                <td><strong>מגבלות:</strong></td>
+                                <td id="keyLimits">5 קריאות לדקה, 500 לחודש</td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> סגור
+                </button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- פופאפ תוצאות בדיקה -->
+<div class="modal fade" id="testResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="testResultHeader">
+                <h5 class="modal-title">
+                    <i class="bi bi-wifi"></i> תוצאות בדיקת חיבור
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="testResultBody">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">בודק...</span>
+                    </div>
+                    <p class="mt-2">בודק חיבור...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">סגור</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showKeyDetails(index, keyId, keyType, isActive) {
+    // עדכון תוכן הפופאפ
+    document.getElementById('keyNumber').textContent = '#' + (parseInt(index) + 1);
+    document.getElementById('keyId').textContent = keyId;
+    document.getElementById('keyType').textContent = keyType;
+    document.getElementById('keyStatus').textContent = isActive ? '✓ פעיל' : '⏸ זמין';
+    
+    // עדכון סטטוס פעיל
+    const activeStatus = document.getElementById('keyActiveStatus');
+    if (isActive) {
+        activeStatus.className = 'alert alert-success';
+        activeStatus.innerHTML = '<i class="bi bi-check-circle"></i> זהו המפתח הפעיל כעת';
+    } else {
+        activeStatus.className = 'alert alert-info';
+        activeStatus.innerHTML = '<i class="bi bi-info-circle"></i> מפתח זמין לשימוש';
+    }
+    
+    // עדכון מגבלות לפי סוג המפתח
+    const limits = document.getElementById('keyLimits');
+    if (keyType === 'מפתח הדגמה') {
+        limits.textContent = 'מוגבל - למטרות הדגמה בלבד';
+    } else {
+        limits.textContent = '5 קריאות לדקה, 500 לחודש';
+    }
+    
+    // הצגת הפופאפ
+    const modal = new bootstrap.Modal(document.getElementById('keyDetailsModal'));
+    modal.show();
+}
+
+function testConnection() {
+    // הצגת פופאפ עם ספינר
+    const modal = new bootstrap.Modal(document.getElementById('testResultModal'));
+    document.getElementById('testResultHeader').className = 'modal-header bg-info text-white';
+    document.getElementById('testResultBody').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">בודק...</span>
+            </div>
+            <p class="mt-2">בודק חיבור API...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // קריאה לשרת לבדיקת חיבור
+    fetch('/test-api')
+        .then(response => response.json())
+        .then(data => {
+            let headerClass, bodyContent;
+            
+            if (data.status === 'success') {
+                headerClass = 'modal-header bg-success text-white';
+                bodyContent = `
+                    <div class="alert alert-success">
+                        <h5><i class="bi bi-check-circle"></i> חיבור תקין!</h5>
+                        <p>${data.message}</p>
+                        <hr>
+                        <small>מחיר בדיקה: $${data.price}</small>
+                    </div>
+                `;
+            } else if (data.status === 'warning') {
+                headerClass = 'modal-header bg-warning text-dark';
+                bodyContent = `
+                    <div class="alert alert-warning">
+                        <h5><i class="bi bi-exclamation-triangle"></i> אזהרה</h5>
+                        <p>${data.message}</p>
+                    </div>
+                `;
+            } else {
+                headerClass = 'modal-header bg-danger text-white';
+                bodyContent = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-x-circle"></i> שגיאה בחיבור</h5>
+                        <p>${data.message}</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('testResultHeader').className = headerClass;
+            document.getElementById('testResultBody').innerHTML = bodyContent;
+        })
+        .catch(error => {
+            document.getElementById('testResultHeader').className = 'modal-header bg-danger text-white';
+            document.getElementById('testResultBody').innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="bi bi-x-circle"></i> שגיאה</h5>
+                    <p>לא ניתן לבדוק את החיבור: ${error.message}</p>
+                </div>
+            `;
+        });
+}
+</script>
+
 {% endblock %} 
